@@ -1,17 +1,32 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { isMarketOpen, fmtIST } from '@/lib/time';
-export default function LiveBadge({ at }: { at?: number }) {
+export default function LiveBadge({ at, coverage, coverageScope = 'the F&O universe', sampleLabel = 'Updated' }: {
+  at?: number | null; coverage?: number; coverageScope?: string; sampleLabel?: string;
+}) {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => { setNow(Date.now()); const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
   if (now == null) return null;
   const open = isMarketOpen(new Date(now));
+  const scanAt = typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : null;
+  const age = scanAt == null ? null : Math.max(0, now - scanAt);
+  const fresh = age != null && age < 120000;
+  const state = !open ? 'closed' : coverage === 0 ? 'missing' : scanAt == null ? 'waiting' : !fresh ? 'delayed' : coverage != null && coverage < 1 ? 'partial' : 'live';
+  const label = state === 'live' ? 'LIVE' : state === 'delayed' ? 'DATA DELAYED' : state === 'partial' ? 'PARTIAL PRICES'
+    : state === 'missing' ? 'NO LIVE PRICES' : state === 'waiting' ? 'AWAITING SCAN' : 'MARKET CLOSED';
+  const updated = age == null || scanAt == null ? null : age < 60000 ? `${sampleLabel} just now`
+    : age < 3600000 ? `${sampleLabel} ${Math.floor(age / 60000)}m ago`
+      : age < 86400000 ? `${sampleLabel} ${Math.floor(age / 3600000)}h ago`
+        : `Last sample ${fmtIST(scanAt, true)} IST`;
+  const percent = coverage == null ? null : Math.round(coverage * 1000) / 10;
+  const title = coverage == null
+    ? scanAt != null ? `Last data sample ${fmtIST(scanAt, true)} IST` : 'Waiting for the first scan'
+    : `Live price quotes available for ${percent}% of ${coverageScope}${scanAt != null ? ` · sampled ${fmtIST(scanAt, true)} IST` : ''}`;
   return (
-    <span className="pill" style={{ gap: 8 }}>
-      <span className={`live-dot ${open ? '' : 'off'}`} />
-      <b className={open ? 'bull' : 'muted'}>{open ? 'LIVE' : 'MARKET CLOSED'}</b>
-      <span className="mono">{fmtIST(now)} IST</span>
-      {at && <span className="dim mono">· scan {fmtIST(at)}</span>}
+    <span className={`pill live-badge ${state}`} title={title}>
+      <span className={`live-dot ${state === 'live' ? '' : state === 'delayed' || state === 'partial' ? 'warn' : 'off'}`} />
+      <b>{label}</b>
+      {updated && <span className="live-age">{updated}</span>}
     </span>
   );
 }

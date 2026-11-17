@@ -55,11 +55,11 @@ export default function BoardClient({ initial = null }: { initial?: ScanResult |
           <h1><span className="grad">Liquidity Board</span></h1>
           <p className="muted" style={{ marginTop: 6 }}>Strongest order-block setups across all active NSE F&amp;O stocks, ranked live.</p>
         </div>
-        <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.at} /><TfSwitch value={tf} onChange={setTf} /></div>
+        <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
       <RegimeBar r={data?.regime ?? null} />
 
-      {error && <div className="notice err" style={{ marginBottom: 20 }}>⚠ {error}</div>}
+      {error && <div className="notice err" style={{ marginBottom: 20 }}>⚠ {error}{data ? ' Showing the last available scan.' : ''}</div>}
 
       <div className="card" style={{ padding: 22, marginBottom: 20 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 16, marginBottom: 10 }}>

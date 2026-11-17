@@ -7,7 +7,7 @@ import { useScan } from '@/components/useScan';
 import TfSwitch from '@/components/TfSwitch';
 import LiveBadge from '@/components/LiveBadge';
 import { f2, pct } from '@/components/fmt';
-import { RegimeBar, ModelBadge } from '@/components/Context';
+import { RegimeBar, ModelBadge, ScoreDetails } from '@/components/Context';
 import MarketUniverse3D from '@/components/three/MarketUniverse3D';
 
 type Key = 'symbol' | 'ltp' | 'changePct' | 'score' | 'rank' | 'er' | 'rsi' | 'rvol' | 'atrPct' | 'dist' | 'rr' | 'oi' | 'htf' | 'pcr';
@@ -50,10 +50,9 @@ export default function XrayClient({ initial = null }: { initial?: ScanResult | 
     <div className="container">
       <div className="page-head">
         <div><h1><span className="grad">Market X-Ray</span></h1><p className="muted" style={{ marginTop: 6 }}>Every active F&amp;O stock with structure, open-interest and options data in one sortable view.</p></div>
-        <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.at} /><TfSwitch value={tf} onChange={setTf} /></div>
+        <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
       <RegimeBar r={data?.regime ?? null} />
-      {data && data.rows.length > 0 && <div className="card glass" style={{ padding: 14, marginBottom: 16 }}><MarketUniverse3D rows={rows} tf={tf} height={440} /></div>}
       <div className="toolbar" style={{ marginBottom: 16 }}>
         <input className="input" placeholder="Search symbol or name…" value={q} onChange={e => setQ(e.target.value.toUpperCase().slice(0, 30))} aria-label="Search" />
         <div className="seg">{(['all', 'bullish', 'bearish', 'neutral'] as const).map(b => <button key={b} className={bias === b ? 'on' : ''} onClick={() => setBias(b)}>{b === 'neutral' ? 'Range-bound' : b[0].toUpperCase() + b.slice(1)}</button>)}</div>
@@ -64,8 +63,8 @@ export default function XrayClient({ initial = null }: { initial?: ScanResult | 
         <span style={{ flex: 1 }} />
         <button className="btn" onClick={exportCsv} disabled={!rows.length}>Export CSV</button>
       </div>
-      {error && <div className="notice err" style={{ marginBottom: 16 }}>⚠ {error}</div>}
-      <div className="card tbl-wrap">
+      {error && <div className="notice err" style={{ marginBottom: 16 }}>⚠ {error}{data ? ' Showing the last available scan.' : ''}</div>}
+      <div className="card tbl-wrap xray-table">
         {loading && !data ? <div className="skeleton" style={{ height: 420 }} /> : (
           <table className="tbl">
             <thead><tr>
@@ -100,6 +99,46 @@ export default function XrayClient({ initial = null }: { initial?: ScanResult | 
           </table>
         )}
       </div>
+      <div className="mobile-data-list xray-mobile">
+        {loading && !data ? <div className="skeleton" style={{ height: 220 }} />
+          : rows.length ? rows.map(r => (
+            <article className="card mobile-xray-card" key={r.symbol}>
+              <div className="mobile-xray-head">
+                <Link href={`/chart/${encodeURIComponent(r.symbol)}?tf=${tf}`} className="sym-link">{r.symbol}</Link>
+                <span className="mono mobile-xray-price">{f2(r.ltp)}</span>
+                <span className={`mono ${(r.changePct ?? 0) >= 0 ? 'bull' : 'bear'}`}>{pct(r.changePct)}</span>
+              </div>
+              <div className="mobile-xray-summary">
+                <span className={`pill ${r.bias === 'bullish' ? 'bullp' : r.bias === 'bearish' ? 'bearp' : 'neutp'} pill-sm`}>{r.bias === 'neutral' ? 'Range-bound' : r.bias}</span>
+                <b className="mono">Score {r.score}</b>
+                <span className="dim">{r.zone ? `OB ${f2(r.zone.bottom)}–${f2(r.zone.top)}` : 'No active OB'}</span>
+              </div>
+              <details className="mobile-details">
+                <summary>Full metrics &amp; score explanation</summary>
+                <div className="mobile-metrics">
+                  <div><small>Rank</small><b>{r.rank}</b></div>
+                  <div><small>OI build-up</small><b>{r.ctx.oi?.buildup ?? 'Unavailable'}</b></div>
+                  <div><small>HTF alignment</small><b>{r.ctx.htf?.align.toFixed(2) ?? 'Unavailable'}</b></div>
+                  <div><small>Reference index</small><b>{r.ctx.regime?.ref ?? 'Unavailable'}</b></div>
+                  <div><small>OI walls (C / P)</small><b className="mono">{r.ctx.walls ? `${f2(r.ctx.walls.callWall)} / ${f2(r.ctx.walls.putWall)}` : 'Unavailable'}</b></div>
+                  <div><small>PCR</small><b>{r.ctx.walls?.pcr?.toFixed(2) ?? '—'}</b></div>
+                  <div><small>OB distance</small><b>{r.zone ? `${r.zone.distATR.toFixed(2)} ATR` : '—'}</b></div>
+                  <div><small>Support / resistance</small><b className="mono">{f2(r.support)} / {f2(r.resistance)}</b></div>
+                  <div><small>Liquidity</small><b className="mono">{f2(r.liquidity)}</b></div>
+                  <div><small>Entry / stop</small><b className="mono">{r.plan ? `${f2(r.plan.entry)} / ${f2(r.plan.sl)}` : '—'}</b></div>
+                  <div><small>Targets</small><b className="mono">{r.plan ? r.plan.tps.map(t => f2(t.price)).join(' / ') : '—'}</b></div>
+                  <div><small>R:R</small><b>{r.plan?.rr.toFixed(2) ?? '—'}</b></div>
+                  <div><small>Efficiency / RSI</small><b>{r.er.toFixed(2)} / {r.rsi.toFixed(1)}</b></div>
+                  <div><small>RVOL / ATR</small><b>{r.rvol.toFixed(2)}× / {r.atrPct.toFixed(2)}%</b></div>
+                  <div><small>Flags</small><b>{r.ctx.flags.ban ? 'F&O ban' : r.ctx.flags.earnings ? `Results ${r.ctx.flags.earnings}` : 'None'}</b></div>
+                  <div><small>Last event</small><b>{r.lastEvent ? `${r.lastEvent.kind} ${r.lastEvent.dir === 'bull' ? '↑' : '↓'}` : '—'}</b></div>
+                </div>
+                <ScoreDetails pModel={r.pModel} score={r.score} rank={r.rank} calibrated={!!data?.model.calibrated} ctx={r.ctx} />
+              </details>
+            </article>
+          )) : <p className="muted">No stocks match these filters.</p>}
+      </div>
+      {data && data.rows.length > 0 && <div className="card glass" style={{ padding: 14, marginTop: 16 }}><MarketUniverse3D rows={rows} tf={tf} height={440} /></div>}
       <p className="dim" style={{ fontSize: 13, marginTop: 12 }}>{rows.length} of {data?.scanned ?? 0} stocks shown · OI computed for the top 60 candidates and option walls for the top 25 per scan{data?.failed ? ` · ${data.failed} skipped (insufficient data)` : ''}.</p>
     </div>
   );

@@ -26,6 +26,8 @@ async function run(tf: Timeframe): Promise<ScanResult> {
     getQuotes(uni.map(u => u.key)).catch(() => new Map<string, Quote>()),
     getRegime(tf).catch(() => null)
   ]);
+  const quoteAt = Array.from(quotes.values()).reduce<number | null>((oldest, q) => oldest == null ? q.receivedAt : Math.min(oldest, q.receivedAt), null);
+  const quoteCoverage = uni.length ? quotes.size / uni.length : 0;
   const s1 = (await pool(uni, 8, u => stage1(u, tf, quotes.get(u.key)))).filter((x): x is Stage1 => !!x);
 
   // OI + option walls only for the strongest candidates (keeps within Upstox rate limits)
@@ -55,7 +57,7 @@ async function run(tf: Timeframe): Promise<ScanResult> {
   rows.sort((x, y) => y.rank - x.rank);
   sweepCache();
   const mi = modelInfo(tf);
-  return { tf, at: Date.now(), total: uni.length, scanned: rows.length, failed: uni.length - rows.length, rows,
+  return { tf, at: Date.now(), quoteAt, quoteCoverage, total: uni.length, scanned: rows.length, failed: uni.length - rows.length, rows,
     regime: regime ? publicRegime(regime) : null, model: { calibrated: mi.calibrated, trainedAt: mi.trainedAt, samples: mi.samples } };
 }
 

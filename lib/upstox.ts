@@ -30,7 +30,8 @@ export async function get(bucket: string, path: string, attempt = 0): Promise<an
 function parse(raw: any): Candle[] {
   const arr: any[] = raw?.data?.candles ?? [];
   return arr.map(r => ({ t: Date.parse(r[0]), o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[5] || 0, oi: r[6] != null ? +r[6] : undefined }))
-    .filter(c => Number.isFinite(c.t) && Number.isFinite(c.c)).sort((a, b) => a.t - b.t);
+    .filter(c => Number.isFinite(c.t) && c.t > 0 && [c.o, c.h, c.l, c.c].every(p => Number.isFinite(p) && p > 0) &&
+      c.h >= Math.max(c.o, c.c, c.l) && c.l <= Math.min(c.o, c.c, c.h)).sort((a, b) => a.t - b.t);
 }
 
 const enc = encodeURIComponent;
@@ -102,7 +103,8 @@ export function patchLast(c: Candle[], ltp: number | undefined, tf: Timeframe, d
   return out;
 }
 
-export type Quote = { key: string; ltp: number; change: number; changePct: number; open: number; high: number; low: number; prevClose: number; volume: number; oi: number };
+export type Quote = { key: string; ltp: number; change: number; changePct: number; open: number; high: number; low: number; prevClose: number; volume: number; oi: number; receivedAt: number };
+const nonNegative = (value: unknown) => { const n = Number(value); return Number.isFinite(n) && n > 0 ? n : 0; };
 
 async function fetchQuotes(keys: string[]): Promise<Map<string, Quote>> {
   const out = new Map<string, Quote>();
@@ -110,11 +112,13 @@ async function fetchQuotes(keys: string[]): Promise<Map<string, Quote>> {
     const chunk = keys.slice(i, i + 450);
     const raw = await get('quotes', `/v2/market-quote/quotes?instrument_key=${chunk.map(enc).join(',')}`);
     const data = raw?.data ?? {};
+    const receivedAt = Date.now();
     for (const k of Object.keys(data)) {
       const q = data[k]; const key: string = q.instrument_token ?? k;
-      const ltp = +q.last_price, change = +(q.net_change ?? 0), prev = ltp - change;
-      out.set(key, { key, ltp, change, changePct: prev ? (change / prev) * 100 : 0, open: +(q.ohlc?.open ?? 0), high: +(q.ohlc?.high ?? 0),
-        low: +(q.ohlc?.low ?? 0), prevClose: prev, volume: +(q.volume ?? 0), oi: +(q.oi ?? 0) });
+      const ltp = Number(q.last_price), change = Number(q.net_change ?? 0), prev = ltp - change;
+      if (!Number.isFinite(ltp) || ltp <= 0 || !Number.isFinite(change) || !Number.isFinite(prev) || prev <= 0) continue;
+      out.set(key, { key, ltp, change, changePct: (change / prev) * 100, open: nonNegative(q.ohlc?.open), high: nonNegative(q.ohlc?.high),
+        low: nonNegative(q.ohlc?.low), prevClose: prev, volume: nonNegative(q.volume), oi: nonNegative(q.oi), receivedAt });
     }
   }
   return out;

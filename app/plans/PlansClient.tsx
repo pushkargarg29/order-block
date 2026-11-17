@@ -6,7 +6,7 @@ import type { ScanRow, Timeframe } from '@/lib/types';
 import { useScan, useLiveQuotes } from '@/components/useScan';
 import TfSwitch from '@/components/TfSwitch';
 import LiveBadge from '@/components/LiveBadge';
-import { ModelBadge, RegimeBar } from '@/components/Context';
+import { ModelBadge, RegimeBar, ScoreDetails } from '@/components/Context';
 import { f2, pct } from '@/components/fmt';
 
 type Sort = 'rank' | 'score' | 'dist' | 'rr' | 'risk' | 'symbol';
@@ -60,7 +60,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
           <h1>Trade <span className="grad">Plans</span></h1>
           <p className="muted" style={{ marginTop: 6 }}>Entry, stop loss and TP1–TP3 for every F&amp;O stock with a valid order-block setup — rebuilt on every scan.</p>
         </div>
-        <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.at} /><TfSwitch value={tf} onChange={setTf} /></div>
+        <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
       <RegimeBar r={data?.regime ?? null} />
 
@@ -81,9 +81,9 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
         <button type="button" className="btn" onClick={exportCsv} disabled={!plans.length}>Export CSV</button>
       </div>
 
-      {error && !data && <div className="notice err" style={{ marginBottom: 16 }}>⚠ {error}</div>}
+      {error && <div className="notice err" style={{ marginBottom: 16 }}>⚠ {error}{data ? ' Showing the last available scan.' : ''}</div>}
 
-      <div className="card tbl-wrap">
+      <div className="card tbl-wrap plans-table">
         {loading && !data ? <div className="skeleton" style={{ height: 420 }} /> : (
           <table className="tbl plans-tbl">
             <thead><tr>
@@ -113,6 +113,44 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
           </table>
         )}
         {data && !plans.length && <p className="muted" style={{ padding: 20 }}>No plans match these filters.</p>}
+      </div>
+
+      <div className="mobile-data-list plans-mobile">
+        {loading && !data ? <div className="skeleton" style={{ height: 220 }} />
+          : plans.length ? plans.map(r => {
+            const p = r.plan, l = live[r.symbol], ltp = l?.ltp ?? r.ltp, bull = p.side === 'bull';
+            const stopped = bull ? ltp <= p.sl : ltp >= p.sl;
+            const status = stopped ? `${bull ? 'Below' : 'Above'} stop — skip` : p.trigger === 'at-entry' ? 'At entry' : `Wait · ${p.distPct.toFixed(2)}% away`;
+            return (
+              <article className="card mobile-plan" key={r.symbol}>
+                <div className="mobile-plan-head">
+                  <Link href={`/chart/${encodeURIComponent(r.symbol)}?tf=${tf}`} className="sym-link">{r.symbol}</Link>
+                  <span className={`pill ${bull ? 'bullp' : 'bearp'} pill-sm`}>{bull ? 'LONG' : 'SHORT'}</span>
+                  <span className="mobile-score mono">Score {r.score}</span>
+                </div>
+                <div className="mobile-plan-quote">
+                  <span><small>LTP</small><b className="mono">{f2(ltp)}</b> <span className={(l?.changePct ?? r.changePct ?? 0) >= 0 ? 'bull' : 'bear'}>{pct(l?.changePct ?? r.changePct)}</span></span>
+                  <b className={stopped ? 'bear' : p.trigger === 'at-entry' ? 'bull' : 'muted'}>{status}</b>
+                </div>
+                <div className="mobile-plan-levels">
+                  <div><small>Entry</small><b className="mono">{f2(p.entry)}</b></div>
+                  <div><small>Stop loss</small><b className="mono bear">{f2(p.sl)}</b></div>
+                  {p.tps.map((t, i) => <div key={i}><small>TP{i + 1} · {t.r.toFixed(1)}R</small><b className="mono bull">{f2(t.price)}</b><small>{t.source}</small></div>)}
+                </div>
+                <details className="mobile-details">
+                  <summary>Plan rules &amp; score details</summary>
+                  <div className="mobile-metrics">
+                    <div><small>Risk</small><b>{p.riskPct.toFixed(2)}%</b></div>
+                    <div><small>Invalidation</small><b className="mono">{f2(p.invalidation)}</b></div>
+                    <div><small>Validity</small><b>{p.validity}</b></div>
+                    <div><small>Flags</small><b>{r.ctx.flags.ban ? 'F&O ban' : r.ctx.flags.earnings ? `Results ${r.ctx.flags.earnings}` : 'None'}</b></div>
+                  </div>
+                  <ul className="mobile-exit-rules">{p.exitRules.map(rule => <li key={rule}>{rule}</li>)}</ul>
+                  <ScoreDetails pModel={r.pModel} score={r.score} rank={r.rank} calibrated={!!data?.model.calibrated} ctx={r.ctx} />
+                </details>
+              </article>
+            );
+          }) : <p className="muted">No plans match these filters.</p>}
       </div>
 
       <div className="card glass" style={{ padding: 'clamp(16px,3vw,24px)', marginTop: 20 }}>

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useMemo, type ReactNode } from 'react';
 import type { ScanRow } from '@/lib/types';
 import { useScan, useLiveQuotes } from '../useScan';
+import LiveBadge from '../LiveBadge';
 import { f2, pct } from '../fmt';
 import { fmtIST } from '@/lib/time';
 
@@ -19,16 +20,20 @@ export function LivePulse() {
   if (error && !data) return <div className="notice err">⚠ {error}</div>;
   const cell = (k: string, v: ReactNode, s?: ReactNode) => <div className="pulse-cell"><small>{k}</small><b>{v}</b>{s && <span>{s}</span>}</div>;
   return (
-    <div className="card glass pulse" aria-live="polite">
-      {cell('NIFTY 50', data ? <span className="mono">{f2(r?.nifty.ltp)}</span> : '—', r ? chg(r.nifty.chgPct) : null)}
-      {cell('BANK NIFTY', data ? <span className="mono">{f2(r?.bank.ltp)}</span> : '—', r ? chg(r.bank.chgPct) : null)}
-      {cell('INDIA VIX', data ? <span className={`mono ${r?.vix.level === 'high' ? 'bear' : r?.vix.level === 'elevated' ? 'gold' : ''}`}>{f2(r?.vix.ltp)}</span> : '—', r?.vix.level && r.vix.level !== 'unknown' ? <span className="dim">{r.vix.level}</span> : null)}
-      {cell('Scanned', data ? <span className="mono">{data.scanned}<span className="dim">/{data.total}</span></span> : '—', <span className="dim">F&amp;O stocks · 15m</span>)}
-      {cell('Bullish', data ? <span className="mono bull">{counts.bull}</span> : '—', <span className="dim">clean setups</span>)}
-      {cell('Bearish', data ? <span className="mono bear">{counts.bear}</span> : '—', <span className="dim">clean setups</span>)}
-      {cell('Range-bound', data ? <span className="mono muted">{counts.chop}</span> : '—', <span className="dim">filtered out</span>)}
-      {cell('Updated', data ? <span className="mono">{fmtIST(data.at)}</span> : '—', data ? <span className={data.model.calibrated ? 'bull' : 'dim'}>{data.model.calibrated ? 'model calibrated' : 'model uncalibrated'}</span> : null)}
-    </div>
+    <>
+      {error && data && <div className="notice err pulse-error">⚠ {error} Showing the last available scan.</div>}
+      <div className="pulse-status"><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} sampleLabel="Quotes sampled" /></div>
+      <div className="card glass pulse" aria-live="polite">
+        {cell('NIFTY 50', data ? <span className="mono">{f2(r?.nifty.ltp)}</span> : '—', r ? chg(r.nifty.chgPct) : null)}
+        {cell('BANK NIFTY', data ? <span className="mono">{f2(r?.bank.ltp)}</span> : '—', r ? chg(r.bank.chgPct) : null)}
+        {cell('INDIA VIX', data ? <span className={`mono ${r?.vix.level === 'high' ? 'bear' : r?.vix.level === 'elevated' ? 'gold' : ''}`}>{f2(r?.vix.ltp)}</span> : '—', r?.vix.level && r.vix.level !== 'unknown' ? <span className="dim">{r.vix.level}</span> : null)}
+        {cell('Scanned', data ? <span className="mono">{data.scanned}<span className="dim">/{data.total}</span></span> : '—', <span className="dim">F&amp;O stocks · 15m</span>)}
+        {cell('Bullish', data ? <span className="mono bull">{counts.bull}</span> : '—', <span className="dim">clean setups</span>)}
+        {cell('Bearish', data ? <span className="mono bear">{counts.bear}</span> : '—', <span className="dim">clean setups</span>)}
+        {cell('Range-bound', data ? <span className="mono muted">{counts.chop}</span> : '—', <span className="dim">filtered out</span>)}
+        {cell('Updated', data ? <span className="mono">{fmtIST(data.at)}</span> : '—', data ? <span className={data.model.calibrated ? 'bull' : 'dim'}>{data.model.calibrated ? 'model calibrated' : 'model uncalibrated'}</span> : null)}
+      </div>
+    </>
   );
 }
 

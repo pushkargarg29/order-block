@@ -43,10 +43,33 @@ export function ScoreBreakdown({ p, score, ctx }: { p: number | null; score: num
   if (p == null) return <p className="muted">No active order block in the trend direction, so no score is produced.</p>;
   return (
     <div className="breakdown">
+      <p className="score-note">The model probability is adjusted by the context factors below to produce the final score.</p>
       <div><span>Model probability (zone holds to +1R)</span><b className="mono">{(p * 100).toFixed(1)}%</b></div>
       {ctx?.adjustments.map(a => <div key={a.key + a.label}><span>{a.label}</span><b className={`mono ${a.delta >= 0 ? 'bull' : 'bear'}`}>{a.delta >= 0 ? '+' : ''}{a.delta.toFixed(2)} log-odds</b></div>)}
       <div className="total"><span>Final score</span><b className="mono grad">{score}</b></div>
     </div>
+  );
+}
+
+export function ScoreDetails({ pModel, score, rank, calibrated, ctx }: {
+  pModel: number | null; score: number; rank: number; calibrated: boolean; ctx: Context;
+}) {
+  return (
+    <details className="score-details">
+      <summary>Why this score?</summary>
+      {pModel == null ? (
+        <p>No active order block is available. The score is a directional-bias fallback, so context adjustments are not applied.</p>
+      ) : (
+        <>
+          <p>Base model probability: <b>{(pModel * 100).toFixed(1)}%</b> to reach +1R before the stop. {calibrated ? 'The model is calibrated.' : 'The model is uncalibrated and uses prior weights.'}</p>
+          <p>Context adjustments (log-odds):</p>
+          {ctx.adjustments.length ? (
+            <ul>{ctx.adjustments.map(a => <li key={a.key + a.label}>{a.label}: <b className={a.delta >= 0 ? 'bull' : 'bear'}>{a.delta >= 0 ? '+' : ''}{a.delta.toFixed(2)}</b></li>)}</ul>
+          ) : <p>No context adjustments were applied.</p>}
+        </>
+      )}
+      <p>Final score: <b>{score}/100</b>. Rank: <b>{rank}</b>; ranking also weights the score by proximity to the active order block.</p>
+    </details>
   );
 }
 

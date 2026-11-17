@@ -19,8 +19,8 @@ export default function LiveSetup({ initial = null }: { initial?: Top | null }) 
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then((j: Top) => { if (!stop) { setD(j); setErr(false); } })
       .catch(() => { if (!stop) setErr(true); });
-    if (!initial || Date.now() - initial.at > 60000) load();
-    const id = setInterval(() => { if (isMarketOpen() && document.visibilityState === 'visible') load(); }, 60000);
+    if (!initial || Date.now() - initial.at > 5000) load();
+    const id = setInterval(() => { if (isMarketOpen() && document.visibilityState === 'visible') load(); }, 5000);
     return () => { stop = true; clearInterval(id); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

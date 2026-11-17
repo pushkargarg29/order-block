@@ -5,7 +5,7 @@ import { isMarketOpen } from '@/lib/time';
 
 /**
  * Shared scan store: every component asking for the same timeframe shares ONE request
- * and ONE 60-second refresh timer (homepage hero, leaders, 3D universe, pulse strip…).
+ * and ONE 5-second refresh timer (homepage hero, leaders, 3D universe, pulse strip…).
  */
 type Entry = { data: ScanResult | null; error: string | null; loading: boolean; inflight: Promise<void> | null; subs: Set<() => void>; timer: ReturnType<typeof setInterval> | null };
 const store = new Map<Timeframe, Entry>();
@@ -41,7 +41,7 @@ export function seedScan(tf: Timeframe, data: ScanResult | null | undefined) {
 }
 
 /** Start loading a timeframe in the background (e.g. on idle) so later pages open instantly. */
-export const prefetchScan = (tf: Timeframe) => { const e = entry(tf); if (!e.data || Date.now() - e.data.at > 60000) load(tf); };
+export const prefetchScan = (tf: Timeframe) => { const e = entry(tf); if (!e.data || Date.now() - e.data.at > 5000) load(tf); };
 
 function restore(tf: Timeframe) {
   const e = entry(tf);
@@ -71,8 +71,8 @@ export function useScan(tf: Timeframe, initial?: ScanResult | null) {
     const sub = () => force(x => x + 1);
     e.subs.add(sub);
     restore(tf); // last-seen data from this browser shows instantly while fresh data loads
-    if (!e.data || Date.now() - e.data.at > 60000) load(tf);
-    if (!e.timer) e.timer = setInterval(() => { if (isMarketOpen() && document.visibilityState === 'visible') load(tf); }, 60000);
+    if (!e.data || Date.now() - e.data.at > 5000) load(tf);
+    if (!e.timer) e.timer = setInterval(() => { if (isMarketOpen() && document.visibilityState === 'visible') load(tf); }, 5000);
     force(x => x + 1);
     return () => { e.subs.delete(sub); if (!e.subs.size && e.timer) { clearInterval(e.timer); e.timer = null; } };
   }, [tf]);

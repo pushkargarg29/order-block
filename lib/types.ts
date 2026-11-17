@@ -73,6 +73,7 @@ export type ScanRow = {
 };
 export type ScanResult = {
   tf: Timeframe; at: number; total: number; scanned: number; failed: number; rows: ScanRow[];
+  quoteAt?: number | null; quoteCoverage?: number;
   regime: RegimeInfo | null; model: { calibrated: boolean; trainedAt: string | null; samples: number };
 };
 

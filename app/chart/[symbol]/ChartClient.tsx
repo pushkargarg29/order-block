@@ -13,7 +13,7 @@ import { ScoreBreakdown, OiPanel, HtfPanel, RegimePanel, WallsPanel, CtxChips, R
 import BacktestPanel from '@/components/BacktestPanel';
 
 type Resp = { symbol: string; name: string; lot: number; tf: Timeframe; candles: Candle[]; analysis: Analysis | null; ctx: Context | null; regime: RegimeInfo | null;
-  model: { calibrated: boolean; trainedAt: string | null }; quote: { ltp: number; changePct: number } | null; at: number };
+  model: { calibrated: boolean; trainedAt: string | null }; quote: { ltp: number; changePct: number; receivedAt: number } | null; at: number };
 
 export default function ChartClient({ symbol, initialTf, initial = null }: { symbol: string; initialTf: Timeframe; initial?: Resp | null }) {
   const [tf, setTf] = useState<Timeframe>(initialTf);
@@ -43,15 +43,9 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
       if (!hit) setD(prev => (prev && prev.symbol === symbol ? prev : null)); // keep the old chart visible while switching timeframe
       load(true);
     }
-    const id = setInterval(() => { if (isMarketOpen() && document.visibilityState === 'visible') load(false); }, tf === '1d' ? 60000 : 15000);
+    const id = setInterval(() => { if (isMarketOpen() && document.visibilityState === 'visible') load(false); }, tf === '1d' ? 5000 : 15000);
     return () => { stop = true; clearInterval(id); };
   }, [symbol, tf]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // preload the other timeframes in the background so switching is instant
-  useEffect(() => {
-    const t = setTimeout(() => (['5m', '15m', '1h', '1d'] as Timeframe[]).filter(x => x !== tf).forEach(x => prefetchChart(symbol, x).catch(() => {})), 1500);
-    return () => clearTimeout(t);
-  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const a = d?.analysis ?? null;
   const go = (s: string) => { const v = s.trim().toUpperCase(); if (/^[A-Z0-9&\-]{1,20}$/.test(v)) router.push(`/chart/${encodeURIComponent(v)}?tf=${tf}`); };
@@ -75,17 +69,17 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
             <input className="input" list="fno-list" value={q} onChange={e => setQ(e.target.value.toUpperCase().slice(0, 20))} placeholder="Search F&O stock…" aria-label="Symbol" />
             <datalist id="fno-list">{universe.map(s => <option key={s} value={s} />)}</datalist>
           </form>
-          <TfSwitch value={tf} onChange={t => { setTf(t); router.replace(`/chart/${encodeURIComponent(symbol)}?tf=${t}`, { scroll: false }); }} />
+          <TfSwitch value={tf} onIntent={t => { if (t !== tf) prefetchChart(symbol, t).catch(() => {}); }} onChange={t => { setTf(t); router.replace(`/chart/${encodeURIComponent(symbol)}?tf=${t}`, { scroll: false }); }} />
         </div>
       </div>
 
-      {err && <div className="notice err" style={{ marginBottom: 16 }}>⚠ {err}</div>}
+      {err && <div className="notice err" style={{ marginBottom: 16 }}>⚠ {err}{d ? ' Showing the last available chart data.' : ''}</div>}
       <RegimeBar r={d?.regime ?? null} />
       {d?.ctx?.flags.ban && <div className="notice err" style={{ marginBottom: 16 }}>⚠ {symbol} is in the F&amp;O ban period — no fresh derivative positions allowed.</div>}
 
       <div className="card" style={{ overflow: 'hidden' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--line)', alignItems: 'center' }}>
-          <LiveBadge at={d?.at} />
+          <LiveBadge at={d?.quote ? d.quote.receivedAt ?? d.at : null} coverage={d ? (d.quote ? 1 : 0) : undefined} coverageScope="this symbol" sampleLabel="Quote sampled" />
           <div className="seg" role="tablist" aria-label="Chart view">
             <button type="button" className={!view3d ? 'on' : ''} onClick={() => setView3d(false)} aria-selected={!view3d} role="tab">2D</button>
             <button type="button" className={view3d ? 'on' : ''} onClick={() => setView3d(true)} aria-selected={view3d} role="tab">3D</button>
