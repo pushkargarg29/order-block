@@ -15,15 +15,15 @@ function StatGrid({ s }: { s: BtStats }) {
   return (
     <div className="kv">
       <div><small>Trades</small><b>{s.trades}</b></div>
-      <div><small>TP1 hit</small><b>{P(s.hitRate1R)}</b></div>
-      <div><small>TP2 hit</small><b>{P(s.hitRate2R)}</b></div>
-      <div><small>TP3 hit</small><b>{P(s.hitRate3R)}</b></div>
-      <div><small>Profitable</small><b>{P(s.winRate2R)}</b></div>
+      <div><small>TP1 reached</small><b>{P(s.hitRate1R)}</b></div>
+      <div><small>TP2 reached</small><b>{P(s.hitRate2R)}</b></div>
+      <div><small>TP3 reached</small><b>{P(s.hitRate3R)}</b></div>
+      <div><small>Profitable trades</small><b>{P(s.winRate2R)}</b></div>
       <div><small>Expectancy</small><b className={s.expectancy2R >= 0 ? 'bull' : 'bear'}>{s.expectancy2R.toFixed(3)} R</b></div>
       <div><small>Profit factor</small><b>{s.profitFactor.toFixed(2)}</b></div>
       <div><small>Max drawdown</small><b>{s.maxDrawdownR.toFixed(1)} R</b></div>
-      <div><small>Avg MFE / MAE</small><b>{s.avgMfeR.toFixed(2)} / {s.avgMaeR.toFixed(2)} R</b></div>
-      <div><small>Avg cost</small><b>{s.costR.toFixed(3)} R</b></div>
+      <div><small>Average MFE / MAE</small><b title="Maximum favorable excursion / maximum adverse excursion">{s.avgMfeR.toFixed(2)} / {s.avgMaeR.toFixed(2)} R</b></div>
+      <div><small>Average trading cost</small><b>{s.costR.toFixed(3)} R</b></div>
     </div>
   );
 }
@@ -41,26 +41,26 @@ export default function BacktestPanel({ symbol, tf }: { symbol: string; tf: Time
   };
   const stale = d && (d.symbol !== symbol || d.tf !== tf);
   return (
-    <div className="card" style={{ padding: 20, marginTop: 20 }}>
+    <div className="card" style={{ padding: 'var(--card-padding)', marginTop: 20 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 14 }}>
         <h3>Backtest — {symbol} · {tf.toUpperCase()}</h3>
         <span style={{ flex: 1 }} />
         <button className="btn btn-primary" onClick={run} disabled={busy}>{busy ? 'Running…' : d && !stale ? 'Re-run' : 'Run backtest'}</button>
       </div>
       <p className="dim" style={{ fontSize: 13, marginBottom: 14 }}>
-        Walk-forward, no look-ahead: first retest of every order block, entry at the block edge, stop beyond the block −0.2 ATR. Exits follow the live plan: 50% at 1R (stop to entry), 30% at 2R (stop to 1R), 20% at 3R, 40-bar time stop. Costs 0.06% per side (brokerage + STT + slippage). A stop and target in the same candle counts the stop first.
+        Walk-forward backtest designed to avoid look-ahead bias. Each order block is evaluated at its first retest, with entry at the block edge and a stop loss 0.2 ATR beyond the block. Exits follow the current plan: 50% at 1R (stop moved to entry), 30% at 2R (stop moved to 1R) and 20% at 3R, with a 40-bar time stop. Estimated costs are 0.06% per side (brokerage, securities transaction tax and slippage). If a stop loss and target occur in the same candle, the stop loss is assumed to execute first.
       </p>
       {err && <div className="notice err">⚠ {err}</div>}
       {d && !stale && (
         <>
           <p className="muted" style={{ marginBottom: 12, fontSize: 14 }}>{d.bars.toLocaleString('en-IN')} bars{d.from && d.to ? ` · ${fmtIST(d.from, true)} → ${fmtIST(d.to, true)}` : ''}</p>
           <div className="grid2">
-            <div><h4 style={{ marginBottom: 10 }}>Stoclio signals <span className="dim" style={{ fontWeight: 400 }}>(bias-aligned, not choppy)</span></h4><StatGrid s={d.signals} /></div>
+            <div><h4 style={{ marginBottom: 10 }}>Stoclio-filtered signals <span className="dim" style={{ fontWeight: 400 }}>(directionally aligned; excludes range-bound conditions)</span></h4><StatGrid s={d.signals} /></div>
             <div><h4 style={{ marginBottom: 10 }}>All order-block retests</h4><StatGrid s={d.all} /></div>
           </div>
           <div className="grid2" style={{ marginTop: 20 }}>
             <div>
-              <h4 style={{ marginBottom: 10 }}>Calibration — predicted vs actual (+1R)</h4>
+              <h4 style={{ marginBottom: 10 }}>Calibration — predicted vs. observed +1R outcomes</h4>
               {d.signals.reliability.filter(r => r.n > 0).map(r => (
                 <div key={r.bucket} className="rel">
                   <span className="mono dim">{r.bucket} <small>({r.n})</small></span>
@@ -71,12 +71,12 @@ export default function BacktestPanel({ symbol, tf }: { symbol: string; tf: Time
               <p className="dim" style={{ fontSize: 12, marginTop: 8 }}>
                 {d.model.calibrated
                   ? `Model fitted ${d.model.trainedAt?.slice(0, 10)} on ${d.model.samples.toLocaleString('en-IN')} trades${d.model.oos ? ` · out-of-sample AUC ${d.model.oos.auc.toFixed(3)}` : ''}.`
-                  : 'Scores currently use prior weights; they become probabilities once the model is calibrated on the full F&O universe.'}
+                  : 'Scores currently use prior weights; they represent calibrated probabilities only after the model is fitted to the full F&O universe.'}
                 {d.signals.brier != null && ` Brier ${d.signals.brier.toFixed(3)} on this stock.`}
               </p>
             </div>
             <div>
-              <h4 style={{ marginBottom: 10 }}>Recent signals</h4>
+              <h4 style={{ marginBottom: 10 }}>Recent backtest trades</h4>
               <div className="tbl-wrap" style={{ maxHeight: 280 }}>
                 <table className="tbl"><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Score</th><th>TP1</th><th>Result</th></tr></thead>
                   <tbody>{d.recent.map(t => <tr key={t.t + t.side}>

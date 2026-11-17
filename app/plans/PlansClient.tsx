@@ -41,7 +41,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
   }, [data]);
 
   const exportCsv = () => {
-    const head = ['Symbol', 'Side', 'Score', 'LTP', 'Status', 'Entry', 'Stop loss', 'Risk %', 'TP1', 'TP1 R', 'TP2', 'TP2 R', 'TP3', 'TP3 R', 'Invalidation', 'Valid', 'Flags'];
+    const head = ['Symbol', 'Direction', 'Score', 'Last traded price', 'Entry status', 'Entry price', 'Stop-loss price', 'Risk %', 'Take-profit 1', 'TP1 risk multiple', 'Take-profit 2', 'TP2 risk multiple', 'Take-profit 3', 'TP3 risk multiple', 'Invalidation price', 'Plan validity', 'Market flags'];
     const lines = plans.map(r => { const p = r.plan; return [r.symbol, p.side === 'bull' ? 'LONG' : 'SHORT', r.score, live[r.symbol]?.ltp ?? r.ltp,
       p.trigger === 'at-entry' ? 'At entry' : `Wait ${p.distPct.toFixed(2)}%`, p.entry.toFixed(2), p.sl.toFixed(2), p.riskPct.toFixed(2),
       ...p.tps.flatMap(t => [t.price.toFixed(2), t.r.toFixed(2)]), p.invalidation.toFixed(2), p.validity,
@@ -58,7 +58,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
       <div className="page-head">
         <div>
           <h1>Trade <span className="grad">Plans</span></h1>
-          <p className="muted" style={{ marginTop: 6 }}>Entry, stop loss and TP1–TP3 for every F&amp;O stock with a valid order-block setup — rebuilt on every scan.</p>
+          <p className="muted" style={{ marginTop: 6 }}>Entry, stop loss and TP1–TP3 levels for every active NSE F&amp;O stock with a valid order-block setup, recalculated with each scan.</p>
         </div>
         <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
@@ -68,15 +68,15 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
         <div className="card stat"><b className="grad">{data ? totals.all : '—'}</b><span className="muted">Valid plans</span></div>
         <div className="card stat"><b className="bull">{data ? totals.long : '—'}</b><span className="muted">Long</span></div>
         <div className="card stat"><b className="bear">{data ? totals.short : '—'}</b><span className="muted">Short</span></div>
-        <div className="card stat"><b style={{ color: 'var(--sky)' }}>{data ? totals.atEntry : '—'}</b><span className="muted">At entry now</span></div>
+        <div className="card stat"><b style={{ color: 'var(--sky)' }}>{data ? totals.atEntry : '—'}</b><span className="muted">Entry triggered</span></div>
       </div>
 
       <div className="toolbar" style={{ margin: '18px 0 14px' }}>
         <input className="input" placeholder="Search symbol…" value={q} maxLength={30} onChange={e => setQ(e.target.value.toUpperCase().replace(/[^A-Z0-9&\- ]/g, ''))} aria-label="Search symbol" />
         <div className="seg" role="tablist" aria-label="Side">{(['all', 'bull', 'bear'] as const).map(s => <button key={s} type="button" className={side === s ? 'on' : ''} onClick={() => setSide(s)}>{s === 'all' ? 'All' : s === 'bull' ? 'Long' : 'Short'}</button>)}</div>
         <div className="seg" role="tablist" aria-label="Minimum score">{[0, 50, 60, 70].map(m => <button key={m} type="button" className={minScore === m ? 'on' : ''} onClick={() => setMinScore(m)}>{m ? `Score ≥ ${m}` : 'Any score'}</button>)}</div>
-        <label className="muted chk"><input type="checkbox" checked={atEntry} onChange={e => setAtEntry(e.target.checked)} />At entry now</label>
-        <label className="muted chk"><input type="checkbox" checked={hideBan} onChange={e => setHideBan(e.target.checked)} />Exclude F&amp;O ban</label>
+        <label className="muted chk"><input type="checkbox" checked={atEntry} onChange={e => setAtEntry(e.target.checked)} />Price at entry</label>
+        <label className="muted chk"><input type="checkbox" checked={hideBan} onChange={e => setHideBan(e.target.checked)} />Exclude securities under F&amp;O ban</label>
         <span className="spacer" />
         <button type="button" className="btn" onClick={exportCsv} disabled={!plans.length}>Export CSV</button>
       </div>
@@ -87,8 +87,8 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
         {loading && !data ? <div className="skeleton" style={{ height: 420 }} /> : (
           <table className="tbl plans-tbl">
             <thead><tr>
-              {th('symbol', 'Symbol')}<th>Side</th>{th('score', 'Score')}<th>LTP</th>{th('dist', 'Status')}<th>Entry</th>{th('risk', 'Stop loss')}
-              <th>TP1</th>{th('rr', 'TP2')}<th>TP3</th><th>Invalidation</th><th>Flags</th>
+              {th('symbol', 'Symbol')}<th>Direction</th>{th('score', 'Score')}<th>Last traded price</th>{th('dist', 'Entry status')}<th>Entry</th>{th('risk', 'Stop loss')}
+              <th>Take profit 1</th>{th('rr', 'Take profit 2')}<th>Take profit 3</th><th>Invalidation level</th><th>Market flags</th>
             </tr></thead>
             <tbody>
               {plans.map(r => {
@@ -100,7 +100,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
                     <td><span className={`pill ${bull ? 'bullp' : 'bearp'} pill-sm`}>{bull ? 'LONG' : 'SHORT'}</span></td>
                     <td className="mono"><b>{r.score}</b></td>
                     <td className="mono">{f2(ltp)} <span className={(l?.changePct ?? r.changePct ?? 0) >= 0 ? 'bull' : 'bear'}>{pct(l?.changePct ?? r.changePct)}</span></td>
-                    <td>{stopped ? <span className="bear">{bull ? 'Below' : 'Above'} stop — skip</span> : p.trigger === 'at-entry' ? <span style={{ color: 'var(--sky)', fontWeight: 700 }}>● At entry</span> : <span className="dim">Wait · {p.distPct.toFixed(2)}% away</span>}</td>
+                    <td>{stopped ? <span className="bear">Stop loss breached — do not enter</span> : p.trigger === 'at-entry' ? <span style={{ color: 'var(--sky)', fontWeight: 700 }}>● Entry triggered</span> : <span className="dim">Await entry · {p.distPct.toFixed(2)}% away</span>}</td>
                     <td className="mono grad" style={{ fontWeight: 700 }}>{f2(p.entry)}</td>
                     <td className="mono bear">{f2(p.sl)} <small className="dim">({p.riskPct.toFixed(2)}%)</small></td>
                     {p.tps.map((t, i) => <td key={i} className="mono bull" title={t.source}>{f2(t.price)} <small className="dim">{t.r.toFixed(1)}R</small></td>)}
@@ -112,7 +112,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
             </tbody>
           </table>
         )}
-        {data && !plans.length && <p className="muted" style={{ padding: 20 }}>No plans match these filters.</p>}
+        {data && !plans.length && <p className="muted" style={{ padding: 20 }}>No trade plans match the selected filters.</p>}
       </div>
 
       <div className="mobile-data-list plans-mobile">
@@ -120,7 +120,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
           : plans.length ? plans.map(r => {
             const p = r.plan, l = live[r.symbol], ltp = l?.ltp ?? r.ltp, bull = p.side === 'bull';
             const stopped = bull ? ltp <= p.sl : ltp >= p.sl;
-            const status = stopped ? `${bull ? 'Below' : 'Above'} stop — skip` : p.trigger === 'at-entry' ? 'At entry' : `Wait · ${p.distPct.toFixed(2)}% away`;
+            const status = stopped ? 'Stop loss breached — do not enter' : p.trigger === 'at-entry' ? 'Entry triggered' : `Await entry · ${p.distPct.toFixed(2)}% away`;
             return (
               <article className="card mobile-plan" key={r.symbol}>
                 <div className="mobile-plan-head">
@@ -129,50 +129,50 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
                   <span className="mobile-score mono">Score {r.score}</span>
                 </div>
                 <div className="mobile-plan-quote">
-                  <span><small>LTP</small><b className="mono">{f2(ltp)}</b> <span className={(l?.changePct ?? r.changePct ?? 0) >= 0 ? 'bull' : 'bear'}>{pct(l?.changePct ?? r.changePct)}</span></span>
+                  <span><small>Last traded price</small><b className="mono">{f2(ltp)}</b> <span className={(l?.changePct ?? r.changePct ?? 0) >= 0 ? 'bull' : 'bear'}>{pct(l?.changePct ?? r.changePct)}</span></span>
                   <b className={stopped ? 'bear' : p.trigger === 'at-entry' ? 'bull' : 'muted'}>{status}</b>
                 </div>
                 <div className="mobile-plan-levels">
                   <div><small>Entry</small><b className="mono">{f2(p.entry)}</b></div>
                   <div><small>Stop loss</small><b className="mono bear">{f2(p.sl)}</b></div>
-                  {p.tps.map((t, i) => <div key={i}><small>TP{i + 1} · {t.r.toFixed(1)}R</small><b className="mono bull">{f2(t.price)}</b><small>{t.source}</small></div>)}
+                  {p.tps.map((t, i) => <div key={i}><small>Take profit {i + 1} · {t.r.toFixed(1)}R</small><b className="mono bull">{f2(t.price)}</b><small>{t.source}</small></div>)}
                 </div>
                 <details className="mobile-details">
-                  <summary>Plan rules &amp; score details</summary>
+                  <summary>Trade-plan rules and score details</summary>
                   <div className="mobile-metrics">
                     <div><small>Risk</small><b>{p.riskPct.toFixed(2)}%</b></div>
                     <div><small>Invalidation</small><b className="mono">{f2(p.invalidation)}</b></div>
                     <div><small>Validity</small><b>{p.validity}</b></div>
-                    <div><small>Flags</small><b>{r.ctx.flags.ban ? 'F&O ban' : r.ctx.flags.earnings ? `Results ${r.ctx.flags.earnings}` : 'None'}</b></div>
+                    <div><small>Market flags</small><b>{r.ctx.flags.ban ? 'F&O ban' : r.ctx.flags.earnings ? `Results ${r.ctx.flags.earnings}` : 'None'}</b></div>
                   </div>
                   <ul className="mobile-exit-rules">{p.exitRules.map(rule => <li key={rule}>{rule}</li>)}</ul>
                   <ScoreDetails pModel={r.pModel} score={r.score} rank={r.rank} calibrated={!!data?.model.calibrated} ctx={r.ctx} />
                 </details>
               </article>
             );
-          }) : <p className="muted">No plans match these filters.</p>}
+          }) : <p className="muted">No trade plans match the selected filters.</p>}
       </div>
 
-      <div className="card glass" style={{ padding: 'clamp(16px,3vw,24px)', marginTop: 20 }}>
+      <div className="card glass" style={{ padding: 'var(--card-padding)', marginTop: 20 }}>
         <h3 style={{ marginBottom: 10 }}>How every plan is built and managed</h3>
         <div className="grid2 rules">
           <ul>
             <li><b>Entry</b> — limit at the order-block edge; market if price is already inside the block.</li>
-            <li><b>Stop loss</b> — beyond the far edge of the block ± 0.2 ATR.</li>
-            <li><b>TP1 / TP2 / TP3</b> — at least 1R / 2R / 3R, snapped to the nearest liquidity pool, swing level or option OI wall within +1.25R of each multiple.</li>
-            <li><b>Valid</b> — intraday entries expire at 15:15 IST; daily entries after 3 sessions.</li>
+            <li><b>Stop loss</b> — placed 0.2 ATR beyond the far edge of the block.</li>
+            <li><b>TP1 / TP2 / TP3</b> — set at a minimum of 1R / 2R / 3R, respectively, and aligned with a nearby liquidity pool, swing level or options open-interest wall when it falls within +1.25R of the target.</li>
+            <li><b>Plan validity</b> — intraday entries expire at 15:15 IST; daily entries expire after three sessions.</li>
           </ul>
           <ul>
-            <li>Book <b>50% at TP1</b> and move the stop to entry.</li>
-            <li>Book <b>30% at TP2</b> and trail the stop to TP1.</li>
+            <li>Take profit on <b>50% at TP1</b> and move the stop to entry.</li>
+            <li>Take profit on <b>30% at TP2</b> and trail the stop to TP1.</li>
             <li>Exit the final <b>20% at TP3</b>.</li>
-            <li>Exit early if a candle <b>closes beyond the invalidation</b> level; skip if price gaps past the stop.</li>
+            <li>Exit early if a candle <b>closes beyond the invalidation level</b>; do not enter if the price gaps beyond the stop loss.</li>
           </ul>
         </div>
         <p className="dim" style={{ fontSize: 13, marginTop: 12 }}>
-          {totals.noPlan > 0 && `${totals.noPlan} stocks have no plan right now (choppy, no active order block, or stop too wide). `}
-          Plans are algorithmic, not recommendations. No method is always right — size each trade so a stop-out is affordable.
-          Backtested TP1/TP2/TP3 hit rates are on each chart&apos;s backtest panel.
+          {totals.noPlan > 0 && `${totals.noPlan} stocks currently have no plan because conditions are range-bound, no active order block is available, or the stop-loss distance is too wide. `}
+          Plans are algorithmic and are not recommendations. No method is guaranteed to be accurate; size each trade so a stop-loss does not exceed your risk tolerance.
+          Historical TP1, TP2 and TP3 attainment rates are available in each chart&apos;s backtest panel.
         </p>
       </div>
     </div>

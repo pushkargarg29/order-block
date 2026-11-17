@@ -13,9 +13,9 @@ const S = 4; // half-size of the world cube
 type Pt = { row: ScanRow; p: V3; c: [number, number, number]; r: number; top: boolean };
 
 /**
- * Every live F&O stock as a point in 3D:
- *  X = signed conviction (bearish ← → bullish), Y = day change %, Z = relative volume (log2).
- * Drag to rotate · hover for details · click to open the order-block chart.
+ * Each active NSE F&O stock is represented as a point in 3D:
+ *  X = signed directional score, Y = daily price change, Z = relative volume (log2).
+ * Drag to rotate, move the pointer over a point for details, or select it to open the chart.
  */
 export default function MarketUniverse3D({ rows, tf = '15m', height = 520 }: { rows: ScanRow[]; tf?: Timeframe; height?: number }) {
   const router = useRouter();
@@ -92,7 +92,7 @@ export default function MarketUniverse3D({ rows, tf = '15m', height = 520 }: { r
     const ax = (p: V3, t: string, c = '#b4c3df', al: CanvasTextAlign = 'center') => { const s = P(p, v); label(ctx, t, s[0], s[1], c, al, 11, 600); };
     ax([S + 0.6, -S, 0], 'Bullish →', '#34d399'); ax([-S - 0.6, -S, 0], '← Bearish', '#f87171');
     ax([-S, S + 0.5, -S], 'Day change +5%'); ax([-S, -S - 0.5, -S], '−5%');
-    ax([S, -S, S + 0.7], 'High rel. volume'); ax([S, -S, -S - 0.7], 'Low rel. volume');
+    ax([S, -S, S + 0.7], 'Higher relative volume'); ax([S, -S, -S - 0.7], 'Lower relative volume');
   }, [pts], {
     auto: true,
     onHover: (x, y) => {
@@ -110,20 +110,20 @@ export default function MarketUniverse3D({ rows, tf = '15m', height = 520 }: { r
   return (
     <div className="scene3d">
       <div ref={wrapRef} className="scene3d-stage" style={{ height: `min(${height}px, 72vh)` }}>
-        <canvas ref={canvasRef} tabIndex={0} aria-label={`3D map of ${rows.length} F&O stocks. Use arrow keys to rotate.`} role="img" />
+        <canvas ref={canvasRef} tabIndex={0} aria-label={`Three-dimensional map of ${rows.length} active NSE F&O stocks. Use the arrow keys to rotate.`} role="img" />
         {r && tip && (
           <div className="tip3d" style={{
             left: Math.max(8, Math.min(tip.x + 14, (wrapRef.current?.clientWidth ?? 256) - 256)),
             top: Math.max(8, Math.min(tip.y + 14, (wrapRef.current?.clientHeight ?? 160) - 140))
           }}>
             <b>{r.symbol}</b> <span className="mono">{f2(r.ltp)}</span> <span className={`mono ${(r.changePct ?? 0) >= 0 ? 'bull' : 'bear'}`}>{pct(r.changePct)}</span>
-            <div className="dim">{r.choppy ? 'Range-bound' : r.bias} · Score {r.score} · RVOL {r.rvol.toFixed(2)}×</div>
-            {r.zone && <div className="dim">OB {f2(r.zone.bottom)}–{f2(r.zone.top)}</div>}
-            <div className="grad" style={{ fontWeight: 700 }}>Open chart →</div>
+            <div className="dim">{r.choppy ? 'Range-bound' : r.bias} · Score {r.score} · Relative volume {r.rvol.toFixed(2)}×</div>
+            {r.zone && <div className="dim">Order block {f2(r.zone.bottom)}–{f2(r.zone.top)}</div>}
+            <div className="grad" style={{ fontWeight: 700 }}>View chart →</div>
           </div>
         )}
       </div>
-      <Controls3D zoomBy={zoomBy} reset={reset} hint="Drag to rotate · hover a stock · click to open its chart" />
+      <Controls3D zoomBy={zoomBy} reset={reset} hint="Drag to rotate · select a point to view its chart" />
     </div>
   );
 }

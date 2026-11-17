@@ -35,18 +35,18 @@ export default function LiveSetup({ initial = null }: { initial?: Top | null }) 
           <>
             <b className="setup-sym">{row.symbol}</b><span className="mono muted">{f2(row.ltp)}</span>
             <span className={`mono ${(row.changePct ?? 0) >= 0 ? 'bull' : 'bear'}`}>{pct(row.changePct)}</span>
-            <span className="spacer" /><span className="pill neutp">Live · 15m</span>
-            <span className={`pill ${bull ? 'bullp' : 'bearp'}`}>#1 {bull ? 'Bullish' : 'Bearish'} · Score {row.score}</span>
+            <span className="spacer" /><span className="pill neutp">Live · 15-minute</span>
+            <span className={`pill ${bull ? 'bullp' : 'bearp'}`}>Rank 1 · {bull ? 'Bullish' : 'Bearish'} · Score {row.score}</span>
           </>
-        ) : state === 'loading' ? <span className="muted">Loading live market data…</span> : null}
+        ) : state === 'loading' ? <span className="muted">Loading current market data…</span> : null}
       </div>
       {state === 'ready' && row && d!.candles.length ? (
         <Link href={`/chart/${encodeURIComponent(row.symbol)}?tf=15m`} aria-label={`Open ${row.symbol} chart`}>
           <CandleChart candles={d!.candles} a={a} showFvg={false} showEma={false} showPlan={false} daily={false}
-            walls={null} showWalls={false} initialCount={60} interactive={false} height={300} />
+            walls={null} showWalls={false} initialCount={60} interactive={false} height={300} compact />
         </Link>
       ) : state === 'loading' ? <div className="skeleton" style={{ height: 300 }} />
-        : <div className="notice" style={{ minHeight: 120 }}>{state === 'empty' ? 'No qualifying order-block setup right now. The Liquidity Board shows the full scan.' : 'Live data is temporarily unavailable. Please retry shortly.'}</div>}
+        : <div className="notice" style={{ minHeight: 120 }}>{state === 'empty' ? 'No qualifying order-block setup is currently available. View the full scan on the Liquidity Board.' : 'Live market data is temporarily unavailable. Please try again shortly.'}</div>}
       {row && (
         <div className="kv kv-3" style={{ marginTop: 14 }}>
           <div><small>Order block</small><b className={bull ? 'bull' : 'bear'}>{row.zone ? `${f2(row.zone.bottom)}–${f2(row.zone.top)}` : '—'}</b></div>

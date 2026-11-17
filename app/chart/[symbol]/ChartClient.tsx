@@ -62,11 +62,11 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
             {d && <ModelBadge calibrated={d.model.calibrated} trainedAt={d.model.trainedAt} />}
           </div>
           {d?.ctx && <div style={{ marginTop: 8 }}><CtxChips c={d.ctx} max={8} /></div>}
-          <p className="muted" style={{ marginTop: 6 }}>{d?.name ?? 'Order Block Chart'}{d?.lot ? ` · Lot ${d.lot}` : ''}</p>
+          <p className="muted" style={{ marginTop: 6 }}>{d?.name ?? 'Order-block chart'}{d?.lot ? ` · Contract lot size ${d.lot}` : ''}</p>
         </div>
         <div className="toolbar">
           <form onSubmit={e => { e.preventDefault(); go(q); }}>
-            <input className="input" list="fno-list" value={q} onChange={e => setQ(e.target.value.toUpperCase().slice(0, 20))} placeholder="Search F&O stock…" aria-label="Symbol" />
+            <input className="input" list="fno-list" value={q} onChange={e => setQ(e.target.value.toUpperCase().slice(0, 20))} placeholder="Search NSE F&O symbol…" aria-label="Search NSE F&O symbol" />
             <datalist id="fno-list">{universe.map(s => <option key={s} value={s} />)}</datalist>
           </form>
           <TfSwitch value={tf} onIntent={t => { if (t !== tf) prefetchChart(symbol, t).catch(() => {}); }} onChange={t => { setTf(t); router.replace(`/chart/${encodeURIComponent(symbol)}?tf=${t}`, { scroll: false }); }} />
@@ -77,7 +77,7 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
       <RegimeBar r={d?.regime ?? null} />
       {d?.ctx?.flags.ban && <div className="notice err" style={{ marginBottom: 16 }}>⚠ {symbol} is in the F&amp;O ban period — no fresh derivative positions allowed.</div>}
 
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--line)', alignItems: 'center' }}>
           <LiveBadge at={d?.quote ? d.quote.receivedAt ?? d.at : null} coverage={d ? (d.quote ? 1 : 0) : undefined} coverageScope="this symbol" sampleLabel="Quote sampled" />
           <div className="seg" role="tablist" aria-label="Chart view">
@@ -94,66 +94,66 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
         </div>
         {d && view3d ? <Chart3D candles={d.candles} a={a} walls={opt.walls ? d.ctx?.walls ?? null : null} /> : d ? <CandleChart candles={d.candles} a={a} showFvg={opt.fvg} showEma={opt.ema} showPlan={opt.plan} daily={d.tf === '1d'} walls={d.ctx?.walls ?? null} showWalls={opt.walls} /> : <div className="skeleton chart-skel" style={{ borderRadius: 0 }} />}
         <div className="legend">
-          <span><i style={{ background: 'rgba(56,189,248,.35)', border: '1px solid #38bdf8' }} />Bullish OB</span>
-          <span><i style={{ background: 'rgba(248,113,113,.35)', border: '1px solid #f87171' }} />Bearish OB</span>
-          <span><i style={{ background: '#fbbf24' }} />Liquidity / sweep</span>
-          <span><i style={{ background: 'rgba(59,130,246,.2)' }} />FVG</span>
-          <span><i style={{ background: '#f87171' }} />Call wall</span><span><i style={{ background: '#34d399' }} />Put wall</span><span><i style={{ background: '#a78bfa' }} />Max pain</span>
-          <span className="dim">Scroll to zoom · Drag to pan · Double-click to reset</span>
+          <span><i style={{ background: 'rgba(56,189,248,.35)', border: '1px solid #38bdf8' }} />Bullish order block</span>
+          <span><i style={{ background: 'rgba(248,113,113,.35)', border: '1px solid #f87171' }} />Bearish order block</span>
+          <span><i style={{ background: '#fbbf24' }} />Liquidity level or sweep</span>
+          <span><i style={{ background: 'rgba(59,130,246,.2)' }} />Fair value gap</span>
+          <span><i style={{ background: '#f87171' }} />Call open-interest wall</span><span><i style={{ background: '#34d399' }} />Put open-interest wall</span><span><i style={{ background: '#a78bfa' }} />Maximum pain</span>
+          <span className="dim">Scroll to zoom · drag to pan · double-click to reset</span>
         </div>
       </div>
 
       {a && (
         <div className="grid3" style={{ marginTop: 20 }}>
-          <div className="card" style={{ padding: 20 }}>
+          <div className="card" style={{ padding: 'var(--card-padding)' }}>
             <h3 style={{ marginBottom: 14 }}>Key levels</h3>
             <div className="kv">
               <div><small>Resistance</small><b>{f2(a.resistance)}</b></div>
               <div><small>Support</small><b>{f2(a.support)}</b></div>
               <div><small>Liquidity</small><b className="gold">{f2(a.liquidityLevel)}</b></div>
-              <div><small>Active OB</small><b>{a.activeZone ? `${f2(a.activeZone.bottom)}–${f2(a.activeZone.top)}` : '—'}</b></div>
+              <div><small>Active order block</small><b>{a.activeZone ? `${f2(a.activeZone.bottom)}–${f2(a.activeZone.top)}` : '—'}</b></div>
             </div>
           </div>
-          <div className="card" style={{ padding: 20 }}>
+          <div className="card" style={{ padding: 'var(--card-padding)' }}>
             <h3 style={{ marginBottom: 14 }}>Trade plan</h3>
             {a.plan ? <>
               <div className="kv">
                 <div><small>{a.plan.side === 'bull' ? 'Long entry' : 'Short entry'}</small><b className="grad">{f2(a.plan.entry)}</b></div>
                 <div><small>Stop loss</small><b className="bear">{f2(a.plan.sl)}</b></div>
-                <div><small>Risk</small><b>{a.plan.riskPct.toFixed(2)}%</b></div>
-                <div><small>Status</small><b style={{ color: a.plan.trigger === 'at-entry' ? 'var(--sky)' : undefined }}>{a.plan.trigger === 'at-entry' ? 'At entry' : `Wait ${a.plan.distPct.toFixed(2)}%`}</b></div>
+                <div><small>Risk per trade</small><b>{a.plan.riskPct.toFixed(2)}%</b></div>
+                <div><small>Entry status</small><b style={{ color: a.plan.trigger === 'at-entry' ? 'var(--sky)' : undefined }}>{a.plan.trigger === 'at-entry' ? 'At entry' : `Wait · ${a.plan.distPct.toFixed(2)}% away`}</b></div>
               </div>
-              <div className="tp-grid">{a.plan.tps.map((t, i) => <div key={i}><small>TP{i + 1}</small><b>{f2(t.price)}</b><span>{t.r.toFixed(2)}R · {t.source}</span></div>)}</div>
+              <div className="tp-grid">{a.plan.tps.map((t, i) => <div key={i}><small>Take profit {i + 1} (TP{i + 1})</small><b>{f2(t.price)}</b><span>{t.r.toFixed(2)}R · {t.source}</span></div>)}</div>
               <ol className="exit-rules">{a.plan.exitRules.map(x => <li key={x}>{x}</li>)}</ol>
               <p className="dim" style={{ fontSize: 12, marginTop: 8 }}>{a.plan.validity}. Algorithmic plan, not a recommendation.</p>
             </> : <p className="muted">No trade plan: price is range-bound with low directional conviction.</p>}
           </div>
-          <div className="card" style={{ padding: 20 }}>
-            <h3 style={{ marginBottom: 14 }}>Quant read</h3>
+          <div className="card" style={{ padding: 'var(--card-padding)' }}>
+            <h3 style={{ marginBottom: 14 }}>Quantitative indicators</h3>
             <div className="kv">
               <div><small>Bias score</small><b>{a.biasScore.toFixed(2)}</b></div>
               <div><small>Efficiency</small><b>{a.er.toFixed(2)}</b></div>
               <div><small>RSI 14</small><b>{a.rsi.toFixed(1)}</b></div>
-              <div><small>Rel. volume</small><b>{a.rvol.toFixed(2)}×</b></div>
-              <div><small>ATR 14</small><b>{f2(a.atr)}</b></div>
-              <div><small>VWAP</small><b>{f2(a.vwap)}</b></div>
+              <div><small>Relative volume</small><b>{a.rvol.toFixed(2)}×</b></div>
+              <div><small>Average true range (14)</small><b>{f2(a.atr)}</b></div>
+              <div><small>Volume-weighted average price</small><b>{f2(a.vwap)}</b></div>
             </div>
           </div>
         </div>
       )}
       {a && (
         <div className="grid2" style={{ marginTop: 20 }}>
-          <div className="card" style={{ padding: 20 }}><h3 style={{ marginBottom: 14 }}>Score breakdown</h3><ScoreBreakdown p={a.pModel} score={a.score} ctx={d?.ctx ?? null} /></div>
-          <div className="card" style={{ padding: 20 }}><h3 style={{ marginBottom: 14 }}>Futures OI build-up</h3><OiPanel c={d?.ctx ?? null} /></div>
-          <div className="card" style={{ padding: 20 }}><h3 style={{ marginBottom: 14 }}>Higher-timeframe agreement</h3><HtfPanel c={d?.ctx ?? null} /></div>
-          <div className="card" style={{ padding: 20 }}><h3 style={{ marginBottom: 14 }}>Index &amp; VIX regime</h3><RegimePanel c={d?.ctx ?? null} /></div>
-          <div className="card" style={{ padding: 20, gridColumn: '1/-1' }}><h3 style={{ marginBottom: 14 }}>Option chain OI walls</h3><WallsPanel c={d?.ctx ?? null} /></div>
+          <div className="card" style={{ padding: 'var(--card-padding)' }}><h3 style={{ marginBottom: 14 }}>Score breakdown</h3><ScoreBreakdown p={a.pModel} score={a.score} ctx={d?.ctx ?? null} /></div>
+          <div className="card" style={{ padding: 'var(--card-padding)' }}><h3 style={{ marginBottom: 14 }}>Futures open-interest build-up</h3><OiPanel c={d?.ctx ?? null} /></div>
+          <div className="card" style={{ padding: 'var(--card-padding)' }}><h3 style={{ marginBottom: 14 }}>Higher-timeframe agreement</h3><HtfPanel c={d?.ctx ?? null} /></div>
+          <div className="card" style={{ padding: 'var(--card-padding)' }}><h3 style={{ marginBottom: 14 }}>Index and India VIX regime</h3><RegimePanel c={d?.ctx ?? null} /></div>
+          <div className="card" style={{ padding: 'var(--card-padding)', gridColumn: '1/-1' }}><h3 style={{ marginBottom: 14 }}>Options-chain open-interest walls</h3><WallsPanel c={d?.ctx ?? null} /></div>
         </div>
       )}
       <BacktestPanel symbol={symbol} tf={tf} />
       {a && a.events.length > 0 && (
-        <div className="card" style={{ padding: 20, marginTop: 20 }}>
-          <h3 style={{ marginBottom: 12 }}>Structure log</h3>
+        <div className="card" style={{ padding: 'var(--card-padding)', marginTop: 20 }}>
+          <h3 style={{ marginBottom: 12 }}>Market-structure event log</h3>
           <div className="tbl-wrap" style={{ maxHeight: 300 }}>
             <table className="tbl"><thead><tr><th>Time (IST)</th><th>Event</th><th>Direction</th><th>Level</th></tr></thead>
               <tbody>{[...a.events].reverse().map(e => <tr key={e.t + e.kind + e.dir}><td className="mono">{fmtIST(e.t, true)}</td><td>{e.kind}</td><td className={e.dir === 'bull' ? 'bull' : 'bear'}>{e.dir === 'bull' ? 'Bullish' : 'Bearish'}</td><td className="mono">{f2(e.level)}</td></tr>)}</tbody>

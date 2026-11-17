@@ -80,7 +80,7 @@ export default function Chart3D({ candles, a, walls, bars = 90, height = 560 }: 
     label(ctx, f2(last.c), ls[0], ls[1], '#38bdf8', 'left', 11, 800);
     if (a) {
       const lab = (p: number | null, t: string, c: string) => { if (p == null || p > hi || p < lo) return; const s = P([W + 0.25, Y(p), 0.9], v); label(ctx, `${t} ${f2(p)}`, s[0], s[1], c, 'left', 10, 700); };
-      if (a.activeZone) lab((a.activeZone.top + a.activeZone.bottom) / 2, a.activeZone.side === 'bull' ? 'Demand OB' : 'Supply OB', a.activeZone.side === 'bull' ? '#7dd3fc' : '#fca5a5');
+      if (a.activeZone) lab((a.activeZone.top + a.activeZone.bottom) / 2, a.activeZone.side === 'bull' ? 'Demand order block' : 'Supply order block', a.activeZone.side === 'bull' ? '#7dd3fc' : '#fca5a5');
       lab(a.liquidityLevel, 'Liquidity', '#fbbf24');
       if (walls) { lab(walls.callWall, 'Call wall', '#f87171'); lab(walls.putWall, 'Put wall', '#34d399'); }
     }

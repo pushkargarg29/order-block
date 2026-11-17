@@ -12,16 +12,16 @@ export default function LiveBadge({ at, coverage, coverageScope = 'the F&O unive
   const age = scanAt == null ? null : Math.max(0, now - scanAt);
   const fresh = age != null && age < 120000;
   const state = !open ? 'closed' : coverage === 0 ? 'missing' : scanAt == null ? 'waiting' : !fresh ? 'delayed' : coverage != null && coverage < 1 ? 'partial' : 'live';
-  const label = state === 'live' ? 'LIVE' : state === 'delayed' ? 'DATA DELAYED' : state === 'partial' ? 'PARTIAL PRICES'
-    : state === 'missing' ? 'NO LIVE PRICES' : state === 'waiting' ? 'AWAITING SCAN' : 'MARKET CLOSED';
+  const label = state === 'live' ? 'LIVE' : state === 'delayed' ? 'DATA DELAYED' : state === 'partial' ? 'PARTIAL QUOTES'
+    : state === 'missing' ? 'NO LIVE QUOTES' : state === 'waiting' ? 'AWAITING FIRST SCAN' : 'MARKET CLOSED';
   const updated = age == null || scanAt == null ? null : age < 60000 ? `${sampleLabel} just now`
-    : age < 3600000 ? `${sampleLabel} ${Math.floor(age / 60000)}m ago`
-      : age < 86400000 ? `${sampleLabel} ${Math.floor(age / 3600000)}h ago`
-        : `Last sample ${fmtIST(scanAt, true)} IST`;
+    : age < 3600000 ? `${sampleLabel} ${Math.floor(age / 60000)} min ago`
+      : age < 86400000 ? `${sampleLabel} ${Math.floor(age / 3600000)} hr ago`
+        : `Last quote sample: ${fmtIST(scanAt, true)} IST`;
   const percent = coverage == null ? null : Math.round(coverage * 1000) / 10;
   const title = coverage == null
-    ? scanAt != null ? `Last data sample ${fmtIST(scanAt, true)} IST` : 'Waiting for the first scan'
-    : `Live price quotes available for ${percent}% of ${coverageScope}${scanAt != null ? ` · sampled ${fmtIST(scanAt, true)} IST` : ''}`;
+    ? scanAt != null ? `Latest data sample: ${fmtIST(scanAt, true)} IST` : 'Waiting for the first market scan'
+    : `Live price quotes are available for ${percent}% of ${coverageScope}${scanAt != null ? ` · sampled ${fmtIST(scanAt, true)} IST` : ''}`;
   return (
     <span className={`pill live-badge ${state}`} title={title}>
       <span className={`live-dot ${state === 'live' ? '' : state === 'delayed' || state === 'partial' ? 'warn' : 'off'}`} />

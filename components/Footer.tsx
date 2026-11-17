@@ -9,7 +9,7 @@ export default function Footer() {
           <div>
             <div className="logo" style={{ marginBottom: 14 }}><Logo /> <span>Stoc<span className="grad">lio</span></span></div>
             <p className="muted" style={{ maxWidth: 420, lineHeight: 1.6 }}>
-              Institutional-grade order block and liquidity analytics for every active NSE F&amp;O stock. Free, no sign-up.
+              Market-structure, order-block and liquidity analytics for active NSE stock-futures contracts. Free to use; no account required.
             </p>
           </div>
           <div>
@@ -26,7 +26,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="foot-bottom">
-          © {new Date().getFullYear()} Stoclio. Live NSE market data. Stoclio is an analytics tool and is not a SEBI-registered investment adviser.
+          © {new Date().getFullYear()} Stoclio. NSE market data. Stoclio is an analytics platform and is not a SEBI-registered investment adviser.
           Nothing on this site is investment advice. Trading in derivatives involves substantial risk of loss.
         </div>
       </div>

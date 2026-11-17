@@ -12,36 +12,36 @@ const Icon = ({ d }: { d: string }) => (
 );
 
 const products = [
-  { title: 'Liquidity Board', href: '/board', items: ['Top bullish & bearish setups, ranked live', 'Entry, stop & target from each order block', 'Range-bound and F&O-ban stocks excluded'] },
-  { title: 'Order Block Charts', href: '/chart/SBIN', items: ['Order blocks, FVGs & liquidity sweeps', 'Option OI walls, max pain & S/R levels', '2D or interactive 3D, five timeframes of context'] },
-  { title: 'Trade Plans', href: '/plans', items: ['Entry, stop loss & TP1–TP3 for every valid setup', 'Exit rules: partial bookings & trailing stop', 'Filter by side, score or at-entry; export CSV'] },
-  { title: 'Market X-Ray', href: '/xray', items: ['Every F&O stock in one sortable table', 'OI build-up, HTF trend & index regime', 'Filter, sort and export to CSV'] }
+  { title: 'Liquidity Board', href: '/board', items: ['Top-ranked bullish and bearish setups, updated in real time', 'Entry, stop loss and targets for each order block', 'Range-bound stocks and securities under F&O ban are excluded'] },
+  { title: 'Order Block Charts', href: '/chart/SBIN', items: ['Order blocks, fair value gaps and liquidity sweeps', 'Options open-interest walls, max pain and support/resistance levels', '2D and interactive 3D charts with five timeframes of context'] },
+  { title: 'Trade Plans', href: '/plans', items: ['Entry, stop loss and TP1–TP3 for every valid setup', 'Exit rules for partial profit-taking and trailing stops', 'Filter by direction, score or entry status; export to CSV'] },
+  { title: 'Market X-Ray', href: '/xray', items: ['Every active NSE stock-futures symbol in one sortable table', 'Open-interest build-up, higher-timeframe trend and index regime', 'Filter, sort and export data to CSV'] }
 ];
 
 const pipeline = [
-  ['Scan', 'Every NSE stock with an active future is pulled with fresh candles, quotes and futures open interest.'],
-  ['Detect', 'Market structure (BOS / CHoCH), order blocks, fair value gaps, liquidity pools and stop-hunt sweeps — no look-ahead.'],
-  ['Score', 'A model built from a walk-forward backtest estimates how likely the nearest order block is to hold to +1R.'],
-  ['Confirm', 'Futures OI build-up, higher-timeframe trend, NIFTY / BANK NIFTY regime, India VIX and option OI walls adjust the score.'],
-  ['Plan & rank', 'Each valid setup gets an entry, stop loss and TP1–TP3; setups closest to entry with the highest score rank first.']
+  ['Scan', 'Every NSE stock with an active futures contract is analyzed using recent candles, price quotes and futures open interest.'],
+  ['Detect', 'Market structure (BOS / CHoCH), order blocks, fair value gaps, liquidity pools and liquidity sweeps, without look-ahead bias.'],
+  ['Score', 'A model trained with walk-forward validation estimates the probability that the nearest order block holds long enough to reach +1R.'],
+  ['Confirm', 'Futures open-interest build-up, higher-timeframe trend, NIFTY / BANK NIFTY market regime, India VIX and options open-interest walls adjust the score.'],
+  ['Plan & rank', 'Each valid setup receives an entry, stop loss and TP1–TP3. Setups with the highest scores and greatest proximity to entry rank first.']
 ];
 
 const modules = [
   ['01', 'Backtested score', 'Walk-forward backtest net of 0.06% costs per side. Calibration status is shown on every page.'],
-  ['02', 'Futures OI build-up', 'Long build-up, short build-up, short covering or long unwinding versus the previous session.'],
+  ['02', 'Futures open-interest build-up', 'Long build-up, short build-up, short covering or long unwinding compared with the previous session.'],
   ['03', 'Higher-timeframe agreement', 'Lower-timeframe blocks are weighted by the higher-timeframe trend, with a bonus when zones overlap.'],
-  ['04', 'Index & VIX regime', 'Each stock is matched to NIFTY or BANK NIFTY by correlation; VIX spikes, F&O ban and results are flagged.'],
-  ['05', 'Option OI walls', 'Highest call & put OI strikes, PCR and max pain — drawn on charts and used as targets.']
+  ['04', 'Index and VIX regime', 'Each stock is matched to NIFTY or BANK NIFTY by correlation; VIX spikes, F&O bans and upcoming results are flagged.'],
+  ['05', 'Options open-interest walls', 'Highest call and put open-interest strikes, put-call ratio and max pain are shown on charts and considered as targets.']
 ];
 
 const faq = [
-  ['Which stocks does Stoclio cover?', 'Every NSE equity that currently has an active stock-futures contract. The list refreshes automatically from the exchange instrument list, so additions and exits are picked up.'],
-  ['How live is the data?', 'During market hours (09:15–15:30 IST) prices refresh every 5 seconds and the full scan is rebuilt about every minute. Outside market hours the last session is shown.'],
-  ['How are entry, stop loss and TP1–TP3 set?', 'Entry is at the order-block edge, the stop sits 0.2 ATR beyond the block, and TP1 / TP2 / TP3 are at least 1R / 2R / 3R, placed on the nearest liquidity, swing level or option OI wall when one is close. The plan books 50% at TP1, 30% at TP2 and 20% at TP3, moving the stop to entry after TP1. No plan is shown for choppy stocks.'],
-  ['What does the score mean?', 'It estimates the chance that the nearest order block holds long enough for price to move one risk-unit (1R) in your favour, adjusted for OI, higher timeframes, index regime and option walls. When the badge says “model uncalibrated”, scores use prior weights rather than fitted probabilities.'],
-  ['Which timeframes are supported?', '5-minute, 15-minute, 1-hour and daily. Each is checked against higher timeframes before it is ranked.'],
-  ['Do I need an account?', 'No. Stoclio is free with no sign-up, login or tracking cookies.'],
-  ['Is this investment advice?', 'No. Stoclio is an analytics tool and is not SEBI-registered. Levels and scores are algorithmic, can be wrong, and derivatives carry a high risk of loss.']
+  ['Which stocks does Stoclio cover?', 'NSE equities with an active stock-futures contract. The list refreshes automatically from the exchange instrument list to include additions and remove expired or inactive contracts.'],
+  ['How frequently is market data updated?', 'During market hours (09:15–15:30 IST), price quotes refresh every five seconds and the full scan is rebuilt approximately once a minute. Outside market hours, the most recent session is displayed.'],
+  ['How are entry, stop loss and TP1–TP3 set?', 'Entry is set at the order-block edge, with the stop 0.2 ATR beyond the block. TP1, TP2 and TP3 are set at a minimum of 1R, 2R and 3R, respectively, and may align with nearby liquidity, swing levels or options open-interest walls. The plan allocates 50% at TP1, 30% at TP2 and 20% at TP3, moving the stop to entry after TP1. Plans are not shown for range-bound stocks.'],
+  ['What does the score mean?', 'The score estimates the probability that the nearest order block holds long enough for price to move one risk unit (1R) in your favor. It is adjusted for open interest, higher-timeframe alignment, the index regime and options open-interest walls. If the badge says “Uncalibrated model,” the score uses prior weights rather than fitted probabilities.'],
+  ['Which timeframes are supported?', '5-minute, 15-minute, 1-hour and daily. Each timeframe is evaluated against higher timeframes before setups are ranked.'],
+  ['Do I need an account?', 'No. Stoclio is free to use and does not require an account or login. It does not use tracking cookies.'],
+  ['Does Stoclio provide investment advice?', 'No. Stoclio is an analytics platform, not a SEBI-registered investment adviser. Its levels and scores are algorithmic and may be inaccurate. Trading derivatives involves a substantial risk of loss.']
 ];
 
 export default async function Home() {
@@ -52,14 +52,18 @@ export default async function Home() {
         <div className="hero-3d" aria-hidden="true"><div className="floor" /><div className="orb o1" /><div className="orb o2" /></div>
         <section className="container hero">
           <div className="hero-copy">
-            <span className="pill"><span className="live-dot" /> Live on every active NSE F&amp;O stock</span>
-            <h1>See Real <span className="hl-box"><span className="grad">Order Blocks</span></span><br /><span className="grad">&amp; Liquidity</span></h1>
-            <p className="lead">Institutional order blocks, liquidity pools and stop-hunts across the whole F&amp;O market — scored, confirmed with OI and ranked live.</p>
+            <span className="pill"><span className="live-dot" /> Live analysis across active NSE F&amp;O stocks</span>
+            <h1 className="hero-title">
+              <span>See Real</span>
+              <span className="hero-title-highlight"><span className="hl-box"><span className="grad">Order Blocks</span></span></span>
+              <span className="grad">&amp; Liquidity</span>
+            </h1>
+            <p className="lead">Order blocks, liquidity pools and liquidity sweeps across the active NSE F&amp;O universe—scored, confirmed with open-interest data and ranked in real time.</p>
             <ul>
-              <li><Icon d="M7 3v18M17 3v18M4 7h6v8H4zM14 9h6v6h-6z" /> Order blocks validated by displacement, volume &amp; imbalance</li>
-              <li><Icon d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 2v5M12 17v5M2 12h5M17 12h5" /> Liquidity pools &amp; stop-hunt sweeps detected live</li>
-              <li><Icon d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM8 12l3 3 5-6" /> Range-bound stocks filtered out automatically</li>
-              <li><Icon d="M3 4h14v10H3zM7 18h6M19 8h2v12h-6v-4" /> Optimised for phone, tablet and desktop</li>
+              <li><Icon d="M7 3v18M17 3v18M4 7h6v8H4zM14 9h6v6h-6z" /> Order blocks validated by displacement, volume and imbalance</li>
+              <li><Icon d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 2v5M12 17v5M2 12h5M17 12h5" /> Liquidity pools and sweeps detected in real time</li>
+              <li><Icon d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM8 12l3 3 5-6" /> Range-bound stocks are automatically filtered out</li>
+              <li><Icon d="M3 4h14v10H3zM7 18h6M19 8h2v12h-6v-4" /> Optimized for phones, tablets and desktops</li>
             </ul>
             <div className="cta-row">
               <Link href="/board" className="btn btn-primary">Open Liquidity Board →</Link>
@@ -70,8 +74,8 @@ export default async function Home() {
           <TiltCard max={4}>
             <div className="card glass hero-card">
               <div className="hero-card-head">
-                <span className="grad big1">1</span>
-                <div><div className="hero-card-title">One clear zone</div><div className="muted">The strongest live setup right now.</div></div>
+                <span className="pill neutp">LIVE SETUP</span>
+                <div><div className="hero-card-title">Top-ranked setup</div><div className="muted">The highest-ranked active order-block setup.</div></div>
               </div>
               <LiveSetup initial={top} />
             </div>
@@ -82,22 +86,22 @@ export default async function Home() {
 
       <section className="container section">
         <span className="pill center-pill"><span className="live-dot" /> Live leaders · 15m</span>
-        <h2>Today&apos;s <span className="grad">highest-conviction</span> setups</h2>
+        <h2>Today&apos;s <span className="grad">top-ranked</span> setups</h2>
         <p className="sub">Ranked by score and distance to the order block. Prices update every few seconds in market hours. Select any stock to open its full chart.</p>
         <LiveLeaders />
         <div style={{ textAlign: 'center', marginTop: 24 }}><Link href="/board" className="btn">See the full Liquidity Board →</Link></div>
       </section>
 
       <section className="container section">
-        <span className="pill center-pill">Interactive 3D · Live</span>
-        <h2>The entire F&amp;O market, <span className="grad">in 3D</span></h2>
-        <p className="sub">Each sphere is a live F&amp;O stock — left to right from bearish to bullish conviction, up and down by day change, front to back by relative volume. Drag to rotate and select a stock to open its chart.</p>
-        <div className="card glass" style={{ padding: 'clamp(8px,2vw,14px)' }}><Universe height={560} /></div>
+        <span className="pill center-pill">Interactive 3D market view</span>
+        <h2>The active NSE F&amp;O universe, <span className="grad">in 3D</span></h2>
+        <p className="sub">Each point represents an active NSE F&amp;O stock. Position shows directional bias and daily price change; depth represents relative volume. Drag to rotate the view, then select a stock to open its chart.</p>
+        <div className="card glass" style={{ padding: 'var(--card-padding)' }}><Universe height={560} /></div>
       </section>
 
       <section className="container section">
         <span className="pill center-pill">How it works</span>
-        <h2>Every F&amp;O stock. <span className="grad">One clear answer.</span></h2>
+        <h2>Every active F&amp;O stock. <span className="grad">One consistent analysis.</span></h2>
         <p className="sub">Five steps run on every scan, using the same rules you can read on the methodology page.</p>
         <ol className="pipeline">
           {pipeline.map(([t, d], i) => (
@@ -118,27 +122,27 @@ export default async function Home() {
       </section>
 
       <section className="container section">
-        <span className="pill center-pill">Institutional engine</span>
+        <span className="pill center-pill">Market analysis engine</span>
         <h2>Five layers of <span className="grad">confirmation</span></h2>
-        <p className="sub">An order block alone is not enough. Each one is checked against the data institutional desks watch.</p>
+        <p className="sub">Order blocks are evaluated alongside complementary market, volatility and derivatives data.</p>
         <div className="grid3">
           {modules.map(([n, t, d]) => (
             <TiltCard key={n}><div className="card mod glass" style={{ height: '100%' }}><span className="num">{n}</span><h3>{t}</h3><p>{d}</p></div></TiltCard>
           ))}
           <Link href="/methodology" className="card mod glass mod-link">
-            <span className="num">→</span><h3 className="grad">Read the full methodology</h3><p>Every rule, weight and limitation, in plain sight.</p>
+            <span className="num">→</span><h3 className="grad">Read the full methodology</h3><p>Review the rules, model weights and known limitations.</p>
           </Link>
         </div>
       </section>
 
       <section className="container section">
         <div className="vs">
-          <div className="card" style={{ padding: 'clamp(20px,4vw,32px)' }}>
+          <div className="card" style={{ padding: 'var(--card-padding)' }}>
             <h3 className="vs-title dim">Without Stoclio</h3>
             {['Entries placed into institutional supply', 'No view of resting liquidity', 'Capital tied up in range-bound stocks'].map(t => <div key={t} className="xrow muted"><span className="x">✕</span>{t}</div>)}
           </div>
           <div className="vs-badge">VS</div>
-          <div className="card with" style={{ padding: 'clamp(20px,4vw,32px)' }}>
+          <div className="card with" style={{ padding: 'var(--card-padding)' }}>
             <h3 className="vs-title">With <span className="grad">Stoclio</span></h3>
             {['Entries aligned with institutional order blocks', 'Liquidity levels mapped on every chart', 'Only high-conviction setups, ranked'].map(t => <div key={t} className="xrow"><span className="v">✓</span>{t}</div>)}
           </div>
@@ -155,8 +159,8 @@ export default async function Home() {
       </section>
 
       <section className="container section" style={{ textAlign: 'center' }}>
-        <h2>Start with today&apos;s <span className="grad">strongest setups</span></h2>
-        <p className="sub">Live NSE data, transparent rules and no sign-up required.</p>
+        <h2>Start with today&apos;s <span className="grad">top-ranked setups</span></h2>
+        <p className="sub">NSE market data, documented rules and no account required.</p>
         <Link href="/board" className="btn btn-primary">Open Liquidity Board →</Link>
       </section>
     </ScanProvider>
