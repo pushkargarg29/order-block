@@ -39,8 +39,16 @@ export function predictWith(m: { means: number[]; stds: number[]; w: number[]; b
 
 export function auc(p: number[], y: number[]): number {
   const idx = p.map((v, i) => i).sort((a, b) => p[a] - p[b]);
-  let rank = 0, sumPos = 0, pos = 0;
-  for (let k = 0; k < idx.length; k++) { rank = k + 1; if (y[idx[k]] === 1) { sumPos += rank; pos++; } }
+  let sumPos = 0, pos = 0;
+  for (let start = 0; start < idx.length;) {
+    let end = start + 1;
+    while (end < idx.length && p[idx[end]] === p[idx[start]]) end++;
+    const averageRank = ((start + 1) + end) / 2;
+    for (let k = start; k < end; k++) {
+      if (y[idx[k]] === 1) { sumPos += averageRank; pos++; }
+    }
+    start = end;
+  }
   const neg = y.length - pos;
   return pos && neg ? (sumPos - (pos * (pos + 1)) / 2) / (pos * neg) : 0.5;
 }

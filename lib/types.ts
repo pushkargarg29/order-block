@@ -26,7 +26,7 @@ export type TradePlan = {
 
 /** ---------- Context (5 institutional modules) ---------- */
 export type OiBuildup = 'Long build-up' | 'Short build-up' | 'Short covering' | 'Long unwinding' | 'Neutral';
-export type OiInfo = { futKey: string; oi: number; prevOi: number; oiChgPct: number; priceChgPct: number; buildup: OiBuildup; signal: -1 | 0 | 1 };
+export type OiInfo = { futKey: string; oi: number; prevOi: number; oiChgPct: number; priceChgPct: number; buildup: OiBuildup; signal: -1 | -0.5 | 0 | 0.5 | 1 };
 export type HtfInfo = { tf: Timeframe; trend: number; label: Bias }[];
 export type HtfSummary = { frames: HtfInfo; align: number; confluence: boolean };
 export type RegimeInfo = {

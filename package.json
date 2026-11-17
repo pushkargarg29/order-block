@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "tsx --test tests/fit.test.ts",
     "backtest": "tsx scripts/backtest.ts"
   },
   "dependencies": {

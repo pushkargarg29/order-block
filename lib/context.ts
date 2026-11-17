@@ -21,12 +21,12 @@ export const ADJ = {
 export function classifyOi(priceChgPct: number, oi: number, prevOi: number, futKey: string): OiInfo {
   const oiChgPct = prevOi ? ((oi - prevOi) / prevOi) * 100 : 0;
   const up = priceChgPct > 0.1, dn = priceChgPct < -0.1, oiUp = oiChgPct > 1, oiDn = oiChgPct < -1;
-  let buildup: OiBuildup = 'Neutral', signal = 0;
+  let buildup: OiBuildup = 'Neutral', signal: OiInfo['signal'] = 0;
   if (up && oiUp) { buildup = 'Long build-up'; signal = 1; }
   else if (dn && oiUp) { buildup = 'Short build-up'; signal = -1; }
   else if (up && oiDn) { buildup = 'Short covering'; signal = 0.5; }
   else if (dn && oiDn) { buildup = 'Long unwinding'; signal = -0.5; }
-  return { futKey, oi, prevOi, oiChgPct, priceChgPct, buildup, signal: signal as OiInfo['signal'] };
+  return { futKey, oi, prevOi, oiChgPct, priceChgPct, buildup, signal };
 }
 
 // ---------------- 2. Higher-timeframe agreement ----------------
