@@ -1,0 +1,116 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Check bundled Chromium package",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"exec",
+				"--yes",
+				"--package=playwright",
+				"--package=@sparticuz/chromium",
+				"--",
+				"node",
+				"-e",
+				"const fs=require(\"fs\"),path=require(\"path\");for(const bin of process.env.PATH.split(path.delimiter).filter(x=>x.includes(\"_npx\")&&x.endsWith(\"node_modules/.bin\"))){for(const name of [\"playwright\",\"@sparticuz/chromium\"]){const mod=path.resolve(bin,\"..\",name);try{console.log(name,require.resolve(mod))}catch(e){console.log(name,\"unavailable\",e.message)}}}"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Install temporary bundled Chromium",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"install",
+				"--no-save",
+				"--no-package-lock",
+				"@sparticuz/chromium"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verify bundled Chromium launch",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"exec",
+				"--yes",
+				"--package=playwright",
+				"--",
+				"node",
+				"-e",
+				"const path=require(\"path\");const bin=process.env.PATH.split(path.delimiter).find(x=>x.includes(\"_npx\")&&x.endsWith(\"node_modules/.bin\"));const {chromium}=require(path.resolve(bin,\"../playwright\"));const bundled=require(path.resolve(process.cwd(),\"node_modules/@sparticuz/chromium\"));(async()=>{const executablePath=await bundled.executablePath();const browser=await chromium.launch({executablePath,args:bundled.args,headless:bundled.headless});console.log(\"Chromium launched\",executablePath);await browser.close()})().catch(e=>{console.error(e);process.exit(1)})"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect temporary Chromium package",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require(\"fs\");for(const p of [\"node_modules/@sparticuz\",\"node_modules/@sparticuz/chromium\",\"node_modules/@sparticuz/chromium-min\"]){console.log(p,fs.existsSync(p),fs.existsSync(p)?fs.readdirSync(p).slice(0,8):\"\")}"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verify bundled Chromium launch again",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"exec",
+				"--yes",
+				"--package=playwright",
+				"--",
+				"node",
+				"-e",
+				"const path=require(\"path\");const bin=process.env.PATH.split(path.delimiter).find(x=>x.includes(\"_npx\")&&x.endsWith(\"node_modules/.bin\"));const {chromium}=require(path.resolve(bin,\"../playwright\"));(async()=>{const bundled=(await import(\"@sparticuz/chromium\")).default;const executablePath=await bundled.executablePath();const browser=await chromium.launch({executablePath,args:bundled.args,headless:bundled.headless});console.log(\"Chromium launched\",executablePath);await browser.close()})().catch(e=>{console.error(e);process.exit(1)})"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start Stoclio for full UI checks",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"start",
+				"--",
+				"--hostname",
+				"127.0.0.1",
+				"--port",
+				"3100"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verify live instrument universe endpoint",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"(async()=>{const r=await fetch(\"http://127.0.0.1:3100/api/universe\",{signal:AbortSignal.timeout(30000)});const body=await r.json();console.log(\"HTTP\",r.status,\"count\",body.count,\"symbols\",Array.isArray(body.symbols)?body.symbols.length:\"missing\");if(!r.ok||!Array.isArray(body.symbols))process.exitCode=1})().catch(e=>{console.error(e.message);process.exit(1)})"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run one full 15m market scan",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"(async()=>{const r=await fetch(\"http://127.0.0.1:3100/api/scan?tf=15m\",{signal:AbortSignal.timeout(240000)});const d=await r.json();console.log(\"HTTP\",r.status,\"tf\",d.tf,\"universe\",d.total,\"scanned\",d.scanned,\"failed\",d.failed,\"rows\",Array.isArray(d.rows)?d.rows.length:\"missing\",\"quoteCoverage\",d.quoteCoverage,\"modelCalibrated\",d.model?.calibrated);if(d.rows?.length)console.log(\"sample\",d.rows[0].symbol,d.rows[0].bias,d.rows[0].score,\"oi\",!!d.rows[0].ctx?.oi,\"walls\",!!d.rows[0].ctx?.walls);if(!r.ok||!Array.isArray(d.rows)||d.rows.length===0)process.exitCode=1})().catch(e=>{console.error(e.message);process.exit(1)})"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
