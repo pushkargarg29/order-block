@@ -32,12 +32,14 @@ export default function Page() {
           Until it is fitted the site shows <b>“Uncalibrated model”</b> and uses conservative prior weights. Every chart page also has a <b>Run backtest</b> button for that single stock.</p>
 
         <h2>4. Module 2 — Futures OI build-up</h2>
-        <table><thead><tr><th>Futures price</th><th>Open interest</th><th>Reading</th><th>Effect</th></tr></thead><tbody>
-          <tr><td>Up &gt; 0.1%</td><td>Up &gt; 1%</td><td>Long build-up</td><td>Confirms longs</td></tr>
-          <tr><td>Down</td><td>Up</td><td>Short build-up</td><td>Confirms shorts</td></tr>
-          <tr><td>Up</td><td>Down &gt; 1%</td><td>Short covering</td><td>Weak long signal</td></tr>
-          <tr><td>Down</td><td>Down</td><td>Long unwinding</td><td>Weak short signal</td></tr>
-        </tbody></table>
+        <div className="prose-table-wrap">
+          <table><thead><tr><th>Futures price</th><th>Open interest</th><th>Reading</th><th>Effect</th></tr></thead><tbody>
+            <tr><td>Up &gt; 0.1%</td><td>Up &gt; 1%</td><td>Long build-up</td><td>Confirms longs</td></tr>
+            <tr><td>Down</td><td>Up</td><td>Short build-up</td><td>Confirms shorts</td></tr>
+            <tr><td>Up</td><td>Down &gt; 1%</td><td>Short covering</td><td>Weak long signal</td></tr>
+            <tr><td>Down</td><td>Down</td><td>Long unwinding</td><td>Weak short signal</td></tr>
+          </tbody></table>
+        </div>
         <p>Today&apos;s live OI is compared with the previous session&apos;s closing OI. Agreement adds +0.30 log-odds (×0.5 for covering/unwinding); disagreement subtracts 0.40.</p>
 
         <h2>5. Module 3 — Higher-timeframe agreement</h2>

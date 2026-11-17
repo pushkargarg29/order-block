@@ -323,7 +323,7 @@ img,svg,canvas{max-width:100%}
 @media(max-width:1200px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.grid4{grid-template-columns:1fr}}
 @media(max-width:1120px){
-  .nav-links{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;background:var(--bg2);padding:12px;border-bottom:1px solid var(--line);box-shadow:0 20px 40px rgba(0,0,0,.4)}
+  .nav-links{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;background:var(--bg2);padding:12px;border-bottom:1px solid var(--line);box-shadow:0 20px 40px rgba(0,0,0,.4);max-height:calc(100vh - 64px);overflow-y:auto;overscroll-behavior:contain}
   .nav-links.open{display:flex}.nav-links a{padding:12px 14px}.burger{display:block}.nav-cta{display:none}
 }
 
@@ -436,4 +436,20 @@ small,.dim,.legend,.foot-bottom{font-size:max(13px,.8125rem)}
 @media (prefers-reduced-motion:no-preference){
   .section,.page-head{animation:rise .6s ease-out both}
   @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+}
+
+/* Keep intrinsic content from widening grid/flex layouts on narrow viewports. */
+.container,main,.page-head,.toolbar,.card,.prose,.tilt,
+.page-head>* ,.board>*,.grid2>*,.grid3>*,.grid4>*{min-width:0}
+.prose{overflow-wrap:anywhere}
+.prose-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.prose-table-wrap table{min-width:560px}
+.ctl3d{flex-wrap:wrap}
+@media(max-width:640px){
+  .ctl3d>span:first-child{flex:1 1 100%}
+  .ctl3d>.spacer{display:none}
+  .tip3d{width:min(240px,calc(100% - 16px))}
+}
+@media(max-width:400px){
+  .plan-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 }

@@ -112,7 +112,10 @@ export default function MarketUniverse3D({ rows, tf = '15m', height = 520 }: { r
       <div ref={wrapRef} className="scene3d-stage" style={{ height: `min(${height}px, 72vh)` }}>
         <canvas ref={canvasRef} tabIndex={0} aria-label={`3D map of ${rows.length} F&O stocks. Use arrow keys to rotate.`} role="img" />
         {r && tip && (
-          <div className="tip3d" style={{ left: Math.min(tip.x + 14, 9999), top: tip.y + 14 }}>
+          <div className="tip3d" style={{
+            left: Math.max(8, Math.min(tip.x + 14, (wrapRef.current?.clientWidth ?? 256) - 256)),
+            top: Math.max(8, Math.min(tip.y + 14, (wrapRef.current?.clientHeight ?? 160) - 140))
+          }}>
             <b>{r.symbol}</b> <span className="mono">{f2(r.ltp)}</span> <span className={`mono ${(r.changePct ?? 0) >= 0 ? 'bull' : 'bear'}`}>{pct(r.changePct)}</span>
             <div className="dim">{r.choppy ? 'Range-bound' : r.bias} · Score {r.score} · RVOL {r.rvol.toFixed(2)}×</div>
             {r.zone && <div className="dim">OB {f2(r.zone.bottom)}–{f2(r.zone.top)}</div>}
