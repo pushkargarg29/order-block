@@ -27,6 +27,22 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .pill.bullp{background:rgba(52,211,153,.1);color:var(--bull);border-color:rgba(52,211,153,.3)}
 .pill.bearp{background:rgba(248,113,113,.1);color:var(--bear);border-color:rgba(248,113,113,.3)}
 .pill.neutp{background:rgba(142,163,199,.1);color:var(--muted);border-color:var(--line2)}
+.terms-gate{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;background:rgba(4,9,20,.94);backdrop-filter:blur(8px)}
+.terms-dialog{width:min(100%,600px);padding:clamp(24px,5vw,40px);text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.terms-dialog h1{margin:0 0 16px;font-size:clamp(28px,5vw,38px);letter-spacing:-1px}
+.terms-dialog p{margin:0 0 22px;line-height:1.65}
+.terms-agreement{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:20px;color:var(--muted);font-size:14px;line-height:1.5;cursor:pointer}
+.terms-agreement input{width:18px;height:18px;margin-top:1px;flex:0 0 auto;accent-color:var(--blue2)}
+.terms-agreement span{text-align:center}
+.terms-agreement:focus-within{color:var(--text)}
+.terms-dialog .btn{display:flex;width:fit-content;margin:0 auto}
+.terms-dialog .btn:disabled{transform:none}
+.terms-dialog .btn:focus-visible{outline:2px solid var(--blue2);outline-offset:3px}
+.methodology-pin-gate{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;max-width:none;padding:24px;background:rgba(4,9,20,.94);backdrop-filter:blur(8px)}
+.methodology-pin-gate>.card{width:min(100%,520px);max-height:calc(100dvh - 48px);overflow-y:auto;text-align:center}
+.methodology-pin-gate form{display:flex;flex-direction:column;align-items:center}
+.methodology-pin-gate form label,.methodology-pin-gate form input,.methodology-pin-gate form .notice{width:100%;text-align:center}
+.methodology-pin-gate form button{align-self:center}
 .live-dot{width:8px;height:8px;border-radius:50%;background:var(--bull);box-shadow:0 0 0 0 rgba(52,211,153,.6);animation:pulse 1.6s infinite}
 .live-dot.off{background:var(--dim);animation:none}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}70%{box-shadow:0 0 0 8px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}

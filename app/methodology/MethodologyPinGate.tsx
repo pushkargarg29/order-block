@@ -33,7 +33,7 @@ export default function MethodologyPinGate({ children }: { children: ReactNode }
   if (unlocked) return children;
 
   return (
-    <main className="container" style={{ maxWidth: 520, padding: '72px 20px' }}>
+    <main className="methodology-pin-gate">
       <section className="card glass" style={{ padding: 'var(--card-padding)' }}>
         <h1>Methodology access</h1>
         <p className="muted" style={{ margin: '10px 0 20px' }}>Enter the PIN shared by the Stoclio platform owner to view this page.</p>

@@ -4,6 +4,7 @@ import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Prefetcher from '@/components/Prefetcher';
+import TermsAcceptanceGate from '@/components/TermsAcceptanceGate';
 
 export const metadata: Metadata = {
   title: { default: 'Stoclio — Institutional Order Block & Liquidity for NSE F&O', template: '%s · Stoclio' },
@@ -18,10 +19,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body>
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
-        <Prefetcher />
+        <TermsAcceptanceGate>
+          <Navbar />
+          <main>{children}</main>
+          <Footer />
+          <Prefetcher />
+        </TermsAcceptanceGate>
       </body>
     </html>
   );
