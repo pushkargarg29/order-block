@@ -1,7 +1,15 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
+import MethodologyPinGate from './MethodologyPinGate';
+import { METHODOLOGY_COOKIE, verifyMethodologySession } from '@/lib/methodology-auth';
 export const metadata: Metadata = { title: 'Methodology' };
 
-export default function Page() {
+export const dynamic = 'force-dynamic';
+
+export default async function Page() {
+  const token = (await cookies()).get(METHODOLOGY_COOKIE)?.value;
+  if (!verifyMethodologySession(token)) return <MethodologyPinGate />;
+
   return (
     <div className="container" style={{ padding: '40px 20px' }}>
       <div className="prose">

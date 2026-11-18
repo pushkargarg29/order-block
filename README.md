@@ -35,7 +35,7 @@ Review the out-of-sample metrics, then commit the JSON and redeploy; the site ba
 
 ## Deploy on Vercel
 1. Push to GitHub → import in Vercel.
-2. Settings → Environment Variables → `UPSTOX_ACCESS_TOKEN` and `CRON_SECRET`.
+2. Settings → Environment Variables → `UPSTOX_ACCESS_TOKEN`, `CRON_SECRET` (at least 32 characters; also signs Methodology sessions), and `METHODOLOGY_PIN` (the four-digit access PIN; share it out of band). Methodology access is retained in an HttpOnly cookie for 12 hours; failed PIN attempts are rate-limited per instance and IP.
 3. Deploy. Confirm your Vercel plan supports the `/api/scan` `maxDuration = 300` setting and configure an authenticated post-deploy warm-up.
 
 ## Rate limits & refresh (important)

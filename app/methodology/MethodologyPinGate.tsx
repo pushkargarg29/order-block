@@ -1,0 +1,62 @@
+'use client';
+import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function MethodologyPinGate() {
+  const router = useRouter();
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/methodology-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+        cache: 'no-store'
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not verify the PIN.');
+      setPin('');
+      router.refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not verify the PIN.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="container" style={{ maxWidth: 520, padding: '72px 20px' }}>
+      <section className="card glass" style={{ padding: 'var(--card-padding)' }}>
+        <h1>Methodology access</h1>
+        <p className="muted" style={{ margin: '10px 0 20px' }}>Enter the PIN shared by the Stoclio platform owner to view this page.</p>
+        <form onSubmit={submit}>
+          <label htmlFor="methodology-pin" className="muted">Access PIN</label>
+          <input
+            id="methodology-pin"
+            className="input"
+            type="password"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{4}"
+            maxLength={4}
+            required
+            value={pin}
+            onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
+            aria-describedby={error ? 'methodology-pin-error' : undefined}
+            style={{ display: 'block', width: '100%', margin: '8px 0 14px' }}
+          />
+          {error && <p id="methodology-pin-error" className="notice err" role="alert">{error}</p>}
+          <button type="submit" className="btn btn-primary" disabled={busy || pin.length !== 4}>
+            {busy ? 'Checking…' : 'Unlock methodology'}
+          </button>
+        </form>
+      </section>
+    </main>
+  );
+}
