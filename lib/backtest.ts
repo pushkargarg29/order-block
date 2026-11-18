@@ -66,7 +66,7 @@ export function runBacktest(c: Candle[], tf: Timeframe, opts: { costPct?: number
     const fv = zoneFeatures(z, a, i, s, d, intraday, htf[i] * sg);
     // TP ladder identical to the live plan: 50% at 1R (stop -> entry), 30% at 2R (stop -> 1R), 20% at 3R.
     const tpR = [1, 2, 3], size = [0.5, 0.3, 0.2];
-    let filled = 0, stopR = -1, pnl = 0, done = false, mfe = 0, mae = 0, bars = 0;
+    let filled = 0, stopR = -1, pnl = 0, done = false, mfe = 0, mae = 0, bars = 0, exitIdx = j;
     // fill bar: only the stop is checked (conservative)
     if (bull ? L[j] <= sl : H[j] >= sl) { pnl = -1; mae = 1; done = true; }
     for (let m = j + 1; !done && m < Math.min(n, j + 1 + maxHold); m++) {
@@ -76,18 +76,18 @@ export function runBacktest(c: Candle[], tf: Timeframe, opts: { costPct?: number
       // conservative: the current stop is assumed to be hit before any target inside the same bar
       if (lowR <= stopR) {
         const exitR = Math.min(stopR, toR(O[m]) < stopR ? toR(O[m]) : stopR); // gap through stop fills at the open
-        pnl += exitR * (1 - size.slice(0, filled).reduce((x, y) => x + y, 0)); mae = Math.max(mae, -Math.min(0, exitR)); done = true; break;
+        pnl += exitR * (1 - size.slice(0, filled).reduce((x, y) => x + y, 0)); mae = Math.max(mae, -Math.min(0, exitR)); done = true; exitIdx = m; break;
       }
       mfe = Math.max(mfe, highR); mae = Math.max(mae, -Math.min(0, lowR));
       while (filled < 3 && highR >= tpR[filled]) { pnl += size[filled] * tpR[filled]; stopR = filled === 0 ? 0 : tpR[filled - 1]; filled++; }
-      if (filled === 3) done = true;
+      if (filled === 3) { done = true; exitIdx = m; }
     }
     if (!done) {
       const e = Math.min(n - 1, j + maxHold); if (e <= j) return;
-      pnl += (((C[e] - fill) * sg) / risk) * (1 - size.slice(0, filled).reduce((x, y) => x + y, 0)); bars = e - j;
+      pnl += (((C[e] - fill) * sg) / risk) * (1 - size.slice(0, filled).reduce((x, y) => x + y, 0)); bars = e - j; exitIdx = e;
     }
     const costR = (costPct * 2 * fill) / risk;
-    trades.push({ t: c[j].t, side: z.side, entry: fill, sl, risk, p: predict(tf, fv), hit1R: filled >= 1, hit2R: filled >= 2, hit3R: filled >= 3,
+    trades.push({ t: c[j].t, exitT: c[exitIdx].t, side: z.side, entry: fill, sl, risk, p: predict(tf, fv), hit1R: filled >= 1, hit2R: filled >= 2, hit3R: filled >= 3,
       r2: pnl - costR, mfeR: mfe, maeR: mae, bars, features: fv });
   });
   return trades.sort((x, y) => x.t - y.t);

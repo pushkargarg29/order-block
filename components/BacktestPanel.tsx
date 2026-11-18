@@ -48,7 +48,7 @@ export default function BacktestPanel({ symbol, tf }: { symbol: string; tf: Time
         <button className="btn btn-primary" onClick={run} disabled={busy}>{busy ? 'Running…' : d && !stale ? 'Re-run' : 'Run backtest'}</button>
       </div>
       <p className="dim" style={{ fontSize: 13, marginBottom: 14 }}>
-        Walk-forward backtest designed to avoid look-ahead bias. Each order block is evaluated at its first retest, with entry at the block edge and a stop loss 0.2 ATR beyond the block. Exits follow the current plan: 50% at 1R (stop moved to entry), 30% at 2R (stop moved to 1R) and 20% at 3R, with a 40-bar time stop. Estimated costs are 0.06% per side (brokerage, securities transaction tax and slippage). If a stop loss and target occur in the same candle, the stop loss is assumed to execute first.
+        Walk-forward backtest designed to avoid look-ahead bias. Each order block is evaluated at its first retest, with entry at the block edge and a stop loss 0.2 ATR beyond the block. It simulates 50% at 1R (stop moved to entry), 30% at 2R (stop moved to 1R) and 20% at 3R, with a 40-bar time stop. It does not simulate the plan&apos;s 15:15 intraday square-off, 10-session daily timeout or separate close-based invalidation exit. Estimated costs are 0.06% per side (brokerage, securities transaction tax and slippage). If a stop loss and target occur in the same candle, the stop loss is assumed to execute first.
       </p>
       {err && <div className="notice err">⚠ {err}</div>}
       {d && !stale && (

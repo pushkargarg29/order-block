@@ -78,7 +78,7 @@ export type ScanResult = {
 };
 
 export type BtTrade = {
-  t: number; side: Side; entry: number; sl: number; risk: number; p: number;
+  t: number; exitT: number; side: Side; entry: number; sl: number; risk: number; p: number;
   hit1R: boolean; hit2R: boolean; hit3R: boolean; /** net R of the TP-ladder trade */ r2: number; mfeR: number; maeR: number; bars: number; features: number[];
 };
 export type BtStats = {

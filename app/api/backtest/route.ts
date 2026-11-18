@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       return {
         symbol, tf, bars: candles.length, from: candles[0]?.t ?? null, to: candles[candles.length - 1]?.t ?? null,
         all: summarize(trades), signals: summarize(signals),
-        recent: signals.slice(-40).reverse().map(({ features, ...t }) => t)
+        recent: signals.slice(-40).reverse().map(({ features, exitT, ...t }) => t)
       };
     });
     return json({ ...res, model: modelInfo(tf), costPctPerSide: 0.06 });

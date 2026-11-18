@@ -12,14 +12,14 @@ const Icon = ({ d }: { d: string }) => (
 );
 
 const products = [
-  { title: 'Liquidity Board', href: '/board', items: ['Top-ranked bullish and bearish setups, updated in real time', 'Entry, stop loss and targets for each order block', 'Range-bound stocks and securities under F&O ban are excluded'] },
+  { title: 'Liquidity Board', href: '/board', items: ['Top-ranked bullish and bearish setups, updated in real time', 'Entry, stop loss and targets for each order block', 'Range-bound stocks and securities under F&O ban are excluded from ranked setup lists'] },
   { title: 'Order Block Charts', href: '/chart', items: ['Order blocks, fair value gaps and liquidity sweeps', 'Options open-interest walls, max pain and support/resistance levels', '2D and interactive 3D charts with five timeframes of context'] },
   { title: 'Trade Plans', href: '/plans', items: ['Entry, stop loss and TP1–TP3 for every valid setup', 'Exit rules for partial profit-taking and trailing stops', 'Filter by direction, score or entry status; export to CSV'] },
   { title: 'Market X-Ray', href: '/xray', items: ['Every active NSE stock-futures symbol in one sortable table', 'Open-interest build-up, higher-timeframe trend and index regime', 'Filter, sort and export data to CSV'] }
 ];
 
 const pipeline = [
-  ['Scan', 'Every NSE stock with an active futures contract is analyzed using recent candles, price quotes and futures open interest.'],
+  ['Scan', 'Every NSE stock with an active futures contract is analyzed using recent candles and quotes; futures open interest is retrieved for the strongest candidates.'],
   ['Detect', 'Market structure (BOS / CHoCH), order blocks, fair value gaps, liquidity pools and liquidity sweeps, without look-ahead bias.'],
   ['Score', 'A walk-forward logistic model can estimate the chance that the nearest order block holds to +1R. Until fitted, Stoclio uses prior weights that are not calibrated probabilities.'],
   ['Confirm', 'Futures open-interest build-up, higher-timeframe trend, NIFTY / BANK NIFTY market regime, India VIX and options open-interest walls adjust the score.'],

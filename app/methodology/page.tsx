@@ -20,7 +20,7 @@ export default function Page() {
         <h2>2. Order-block engine</h2>
         <ul>
           <li><b>Structure</b> — fractal pivots (3 bars each side, used only once confirmed). Close beyond the last pivot = BOS; against the prior trend = CHoCH.</li>
-          <li><b>Order block</b> — the last opposite-color candle before the impulse that broke structure; candles larger than 2 ATR are refined to the candle body and defended wick.</li>
+          <li><b>Order block</b> — among the prior 40 bars (not earlier than the broken pivot minus the swing window), the opposite-color candle with the lowest low for a bullish break or highest high for a bearish break; if none exists, the most extreme candle is used. Candles larger than 2 ATR are refined to the candle body and defended wick.</li>
           <li><b>Quality</b> — displacement in ATR, relative volume of the impulse, fair-value-gap confluence, freshness (retests), and invalidation on a close through the block.</li>
           <li><b>Liquidity</b> — unswept swing highs/lows clustered within 0.25 ATR (equal highs/lows); a sweep is a wick through a pool that closes back inside.</li>
           <li><b>Bias</b> — 0.30·structure + 0.20·EMA 20/50 + 0.20·regression slope + 0.15·RSI + 0.15·VWAP side. Kaufman efficiency &lt; 0.18 or |bias| &lt; 0.2 = <b>Range-bound</b>.</li>
@@ -29,10 +29,11 @@ export default function Page() {
         <h2>3. Module 1 — Backtest engine &amp; fitted score</h2>
         <p>The backtester replays history bar by bar to avoid <b>look-ahead bias</b>: pivots are used only after confirmation, and a block becomes tradable only two bars after the break.
           For each block, the <b>first retest</b> is traded: limit entry at the block edge (or the open if price gaps through), stop 0.2 ATR beyond the block,
-          2R target or 40-bar time stop, with an estimated <b>0.06% cost per side</b> (brokerage, securities transaction tax and slippage). If the stop and target occur in the same bar, the stop is assumed to execute first.</p>
+          50% exit at 1R, 30% at 2R and 20% at 3R, with the stop moved to breakeven after 1R and to 1R after 2R. Remaining size exits after 40 bars.
+          Estimated costs are <b>0.06% per side</b> (brokerage, securities transaction tax and slippage). If a stop and target occur in the same bar, the stop is assumed to execute first.</p>
         <p>Eleven features are measured on the bar <i>before</i> the touch — aligned bias, efficiency, displacement, impulse volume, FVG, block age, current relative volume,
           liquidity sweep, higher-timeframe alignment, RSI and block width. An L2-regularized logistic regression is fitted to predict whether
-          <b> price reaches +1R before the stop</b>. Walk-forward validation trains on the oldest 70% of trades and evaluates on the newest 30%, using the area under the ROC curve (AUC), Brier score and a calibration table.</p>
+          <b> price reaches +1R before the stop</b>. Walk-forward validation trains on the oldest 70% of trades, purges training trades that remain open at the test boundary, and evaluates on the newest 30%, using the area under the ROC curve (AUC), Brier score and a calibration table.</p>
         <p>The model is fitted offline across the active NSE F&amp;O universe and refreshed periodically.
           Until model fitting is run, the site shows <b>“Prior model · not fitted”</b> and uses hand-set prior weights. These outputs are not calibrated probabilities. Each chart page also provides a <b>Run backtest</b> option for that stock.</p>
 
@@ -53,7 +54,7 @@ export default function Page() {
 
         <h2>6. Module 4 — Index and volatility regime, F&amp;O bans and results</h2>
         <ul>
-          <li>Each stock is matched to NIFTY 50 or BANK NIFTY by the higher return correlation (beta is shown). A signal against a correlated (&gt; 0.4) index trend: −0.35; with it: +0.10.</li>
+          <li>Each stock is matched to NIFTY 50 or BANK NIFTY by the higher return correlation (NIFTY is used on a tie; beta is shown). A signal against a correlated (&gt; 0.4) index trend: −0.35; with it: +0.10.</li>
           <li>India VIX ≥ 24, or 18–24 and up more than 8% on the day: −0.15.</li>
           <li>Stocks in the NSE F&amp;O ban are removed from the board (still visible in X-Ray, flagged).</li>
           <li>Results within 3 days: −0.20 and flagged. The results calendar is fetched from NSE on a best-effort basis; if NSE blocks the request the site shows “calendar unavailable”.</li>
@@ -74,7 +75,7 @@ export default function Page() {
           <li><b>TP1 / TP2 / TP3</b> — set at a minimum of 1R / 2R / 3R. Each target aligns with the nearest unswept liquidity pool, swing high or low, or options open-interest wall within +1.25R of that multiple; otherwise the exact risk multiple is used. Targets are at least 0.5R apart.</li>
           <li><b>Trade management</b> — take profit on 50% of the position at TP1 and move the stop to entry; take profit on 30% at TP2 and trail the stop to TP1; exit the remaining 20% at TP3. Exit early if a candle closes beyond the block; do not enter if the price gaps through the stop.</li>
           <li><b>Plan validity</b> — pending intraday entries expire at 15:15 IST, and open intraday trades are closed by 15:15. Daily entries expire after three sessions and are closed after ten sessions if TP1 has not been reached.</li>
-          <li>The backtester simulates this exit structure. TP1, TP2 and TP3 attainment rates in each chart&apos;s backtest panel therefore correspond to the displayed plan.</li>
+          <li>The backtester simulates the 50% / 30% / 20% target ladder and trailing stop, but uses a 40-bar time stop. It does not simulate the plan&apos;s 15:15 intraday square-off, 10-session daily timeout, or separate close-based invalidation exit; its historical rates are therefore not an exact replay of displayed plans.</li>
         </ul>
 
         <h2>Data &amp; refresh</h2>

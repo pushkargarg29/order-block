@@ -94,7 +94,7 @@ export function stockRegime(stock: Candle[], r: Awaited<ReturnType<typeof getReg
   };
   const n = pick('NIFTY'), b = pick('BANKNIFTY');
   if (!n.corr && !b.corr) return null;
-  const best = b.corr > n.corr + 0.05 ? b : n;
+  const best = b.corr > n.corr ? b : n;
   const st = best.k === 'NIFTY' ? r.nifty : r.bank;
   const refTrend = 0.5 * st.tfTrend + 0.5 * st.dayTrend, sg = side === 'bull' ? 1 : -1;
   return {

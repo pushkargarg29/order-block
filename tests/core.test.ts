@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resample, ema } from '../lib/indicators';
-import { classifyOi } from '../lib/context';
+import { classifyOi, stockRegime } from '../lib/context';
 import { buildPlan, buildSeries, detect } from '../lib/smc';
 import { hasMarketSessionStartedToday } from '../lib/time';
 import { patchLast } from '../lib/upstox';
@@ -48,6 +48,30 @@ test('OI classifier distinguishes buildup, unwinding, covering, and neutral read
   assert.equal(classify(0.2, 98).signal, 0.5);
   assert.equal(classify(-0.2, 98).signal, -0.5);
   assert.equal(classify(0.05, 100).signal, 0);
+});
+
+test('stock regime selects the index with the higher return correlation', () => {
+  const stockReturns = Array.from({ length: 60 }, (_, i) => Math.sin(i * 1.7) + 0.3 * Math.cos(i * 0.51));
+  const noise = Array.from({ length: 60 }, (_, i) => Math.sin(i * 0.73) + 0.2 * Math.cos(i * 1.13));
+  const candlesFor = (returns: number[]): Candle[] => {
+    let close = 100;
+    return returns.map((value, i) => {
+      close *= Math.exp(value);
+      return { t: i * 60_000, o: close, h: close, l: close, c: close, v: 1 };
+    });
+  };
+  const regime = {
+    nifty: { tfTrend: 0, dayTrend: 0, ltp: null, chgPct: null },
+    bank: { tfTrend: 0, dayTrend: 0, ltp: null, chgPct: null },
+    vix: { ltp: null, chgPct: null, level: 'unknown' as const },
+    ban: null, earnings: null, at: 0,
+    _idx: {
+      NIFTY: { tfTrend: 0, dayTrend: 0, ltp: null, chgPct: null, candles: candlesFor(stockReturns.map((r, i) => r + 0.2 * noise[i])) },
+      BANKNIFTY: { tfTrend: 0, dayTrend: 0, ltp: null, chgPct: null, candles: candlesFor(stockReturns.map((r, i) => r + 0.1 * noise[i])) }
+    }
+  };
+
+  assert.equal(stockRegime(candlesFor(stockReturns), regime, 'bull')?.ref, 'BANKNIFTY');
 });
 
 test('structure break creates an order block tradable only after its availability delay', () => {

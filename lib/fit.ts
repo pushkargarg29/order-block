@@ -37,6 +37,10 @@ export function predictWith(m: { means: number[]; stds: number[]; w: number[]; b
   return sigmoid(z);
 }
 
+export function purgeOverlappingTrades<T extends { exitT: number }>(trades: T[], testStart: number): T[] {
+  return trades.filter(trade => trade.exitT < testStart);
+}
+
 export function auc(p: number[], y: number[]): number {
   if (p.length !== y.length || p.length === 0 || p.some(value => !Number.isFinite(value)) || y.some(value => value !== 0 && value !== 1)) return 0.5;
   const idx = p.map((v, i) => i).sort((a, b) => p[a] - p[b]);

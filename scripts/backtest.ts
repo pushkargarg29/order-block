@@ -10,7 +10,7 @@ import { join } from 'path';
 import { getFnoUniverse } from '../lib/instruments';
 import { getHistory } from '../lib/upstox';
 import { runBacktest, summarize, isSignal, BT_HISTORY } from '../lib/backtest';
-import { fitLogistic, predictWith, auc, brier, reliability } from '../lib/fit';
+import { fitLogistic, predictWith, auc, brier, reliability, purgeOverlappingTrades } from '../lib/fit';
 import { FEATURE_NAMES } from '../lib/model';
 import type { BtTrade, Timeframe } from '../lib/types';
 import { TIMEFRAMES } from '../lib/types';
@@ -50,17 +50,21 @@ async function runTf(tf: Timeframe) {
   all.sort((a, b) => a.t - b.t);
   const X = all.map(t => t.features), y: number[] = all.map(t => (t.hit1R ? 1 : 0));
 
-  // walk-forward: train on the first 70% of time, evaluate on the most recent 30%
+  // Walk-forward: purge training trades that remain open when the test window starts.
   const cut = Math.floor(all.length * 0.7);
-  const trainPositives = y.slice(0, cut).filter(label => label === 1).length;
-  const trainNegatives = cut - trainPositives;
+  const testStart = all[cut]?.t;
+  if (testStart == null) { console.warn('  no test trades after the walk-forward split — skipped fitting'); return null; }
+  const train = purgeOverlappingTrades(all.slice(0, cut), testStart);
+  const trainY = train.map(t => t.hit1R ? 1 : 0);
+  const trainPositives = trainY.filter(label => label === 1).length;
+  const trainNegatives = trainY.length - trainPositives;
   const testPositives = y.slice(cut).filter(label => label === 1).length;
   const testNegatives = y.length - cut - testPositives;
   if (Math.min(trainPositives, trainNegatives, testPositives, testNegatives) < 10) {
     console.warn('  at least one walk-forward split has fewer than 10 examples of an outcome class — skipped fitting');
     return null;
   }
-  const m1 = fitLogistic(X.slice(0, cut), y.slice(0, cut));
+  const m1 = fitLogistic(train.map(t => t.features), trainY);
   const pT = X.slice(cut).map(x => predictWith(m1, x)), yT = y.slice(cut);
   const oos = { auc: auc(pT, yT), brier: brier(pT, yT), baseRate: yT.reduce((a, b) => a + b, 0) / yT.length, samples: yT.length };
   const rel = reliability(pT, yT);
@@ -79,7 +83,7 @@ async function runTf(tf: Timeframe) {
 
   const lines = [
     `# Stoclio backtest — ${tf}`, '', `Generated ${model.trainedAt} · ${uni.length} stocks · ${h.days} days · cost ${(costPct * 100).toFixed(3)}% per side`, '',
-    '## Out-of-sample (last 30% of time, model trained on first 70%)', '',
+    '## Out-of-sample (last 30% of trades; overlapping training trades purged)', '',
     `- Samples: ${oos.samples} · AUC **${oos.auc.toFixed(3)}** · Brier ${oos.brier.toFixed(4)} · base rate ${pct(oos.baseRate)}`, '',
     '| Predicted bucket | Trades | Avg predicted | Actual 1R hit |', '|---|---|---|---|',
     ...rel.map(r => `| ${r.bucket} | ${r.n} | ${pct(r.predicted)} | ${pct(r.actual)} |`), '',
