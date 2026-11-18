@@ -1,10 +1,10 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { UpstoxError } from './upstox';
-import { BudgetError, consumeRequestLimit, RateLimitUnavailable } from './ratelimit';
+import { BudgetError, consumeRequestLimit } from './ratelimit';
 export { verifyBearerSecret } from './cron-auth';
 
-/** Shared per-IP request limiting plus same-origin enforcement. */
+/** Per-instance per-IP request limiting plus same-origin enforcement. */
 export function requestIdentity(req: NextRequest): string {
   const vercelForwarded = req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim();
   if (vercelForwarded) return vercelForwarded;
@@ -22,13 +22,8 @@ export async function guard(req: NextRequest, LIMIT = 120, scope = 'api'): Promi
     catch { return json({ error: 'Forbidden' }, 403); }
   }
   const ip = requestIdentity(req);
-  try {
-    const result = await consumeRequestLimit(scope, ip, LIMIT);
-    if (!result.allowed) return json({ error: 'Too many requests' }, 429, { 'Retry-After': String(Math.max(1, Math.ceil(result.retryAfterMs / 1000))) });
-  } catch (error) {
-    console.error('[stoclio] shared request limiter failed', error);
-    return json({ error: 'Request protection is temporarily unavailable' }, 503, { 'Retry-After': '30' });
-  }
+  const result = await consumeRequestLimit(scope, ip, LIMIT);
+  if (!result.allowed) return json({ error: 'Too many requests' }, 429, { 'Retry-After': String(Math.max(1, Math.ceil(result.retryAfterMs / 1000))) });
   return null;
 }
 
@@ -52,10 +47,6 @@ export const SYMBOL_RE = /^[A-Z0-9&\-]{1,20}$/;
 export function errorResponse(e: unknown, fallback = 'Live market data is temporarily unavailable. Please retry shortly.') {
   if (e instanceof UpstoxError) return json({ error: e.message }, e.status);
   if (e instanceof BudgetError) return json({ error: e.message }, 503, { 'Retry-After': String(Math.max(1, Math.ceil(e.retryAfterMs / 1000))) });
-  if (e instanceof RateLimitUnavailable) {
-    console.error('[stoclio] shared rate limiter unavailable');
-    return json({ error: e.message }, 503, { 'Retry-After': '30' });
-  }
   console.error('[stoclio]', e);
   return json({ error: fallback }, 502);
 }

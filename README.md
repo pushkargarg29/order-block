@@ -35,7 +35,7 @@ Review the out-of-sample metrics, then commit the JSON and redeploy; the site ba
 
 ## Deploy on Vercel
 1. Push to GitHub → import in Vercel.
-2. Settings → Environment Variables → `UPSTOX_ACCESS_TOKEN`, `CRON_SECRET`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN`.
+2. Settings → Environment Variables → `UPSTOX_ACCESS_TOKEN` and `CRON_SECRET`.
 3. Deploy. Confirm your Vercel plan supports the `/api/scan` `maxDuration = 300` setting and configure an authenticated post-deploy warm-up.
 
 ## Rate limits & refresh (important)
@@ -45,7 +45,7 @@ Upstox allows **500 requests/min and 2,000 per 30 min per API**. Stoclio stays i
 - one shared 4-second quote cache for all visitors,
 - OI for the top 60 and option chains for the top 25 candidates per scan (10-minute cache).
 
-The **first cold scan** downloads history for the whole universe and may take longer than five seconds. The Upstox quota limiter and visitor API limiter use shared Upstash Redis in production. Local development uses in-memory limits; set both Redis REST variables in Vercel before production deployment.
+The **first cold scan** downloads history for the whole universe and may take longer than five seconds. Upstream quota and visitor API limits are held in process memory, so they require no Redis service. On serverless deployments these limits are per running instance and reset when an instance restarts; use Vercel Firewall or another platform-level control if globally shared enforcement is required.
 
 ## Limitations
 - Module adjustments (OI, regime, walls, results) are documented heuristics, not fitted — Upstox does not provide historical OI / option chains for a fair backtest.
@@ -54,7 +54,7 @@ The **first cold scan** downloads history for the whole universe and may take lo
 - Prices are polled (5 s), not tick-by-tick; true ticks need the Upstox WebSocket on an always-on server.
 
 ## Security
-Per-request nonce CSP (`frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`), `X-Frame-Options: DENY`, HSTS preload, nosniff, Referrer-Policy, Permissions-Policy, COOP/CORP, `poweredByHeader` off. API: same-origin enforcement, strict input validation, no-store responses, shared Upstash rate limits, and provider token never sent to the browser.
+Per-request nonce CSP (`frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`), `X-Frame-Options: DENY`, HSTS preload, nosniff, Referrer-Policy, Permissions-Policy, COOP/CORP, `poweredByHeader` off. API: same-origin enforcement, strict input validation, no-store responses, per-instance in-memory rate limits, and provider token never sent to the browser.
 
 ## Speed (v7)
 - **Edge caching:** `/api/scan`, `/api/top`, `/api/candles`, `/api/quotes` and `/api/universe` are cached on Vercel's edge with stale-while-revalidate. Visitors get the last result instantly while it refreshes in the background.

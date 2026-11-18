@@ -10,7 +10,6 @@
     "backtest": "tsx scripts/backtest.ts"
   },
   "dependencies": {
-    "@upstash/redis": "^1.41.0",
     "@vercel/functions": "^1.5.2",
     "next": "16.4.6",
     "react": "19.3.1",
