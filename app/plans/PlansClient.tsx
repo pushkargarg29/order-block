@@ -8,6 +8,7 @@ import TfSwitch from '@/components/TfSwitch';
 import LiveBadge from '@/components/LiveBadge';
 import { ModelBadge, RegimeBar, ScoreDetails, EnrichmentCoverage } from '@/components/Context';
 import { f2, pct } from '@/components/fmt';
+import { planReadiness, planStatusMessage } from '@/lib/plan-status';
 
 type Sort = 'rank' | 'score' | 'dist' | 'rr' | 'risk' | 'symbol';
 const csvCell = (v: unknown) => { const s = v == null ? '' : String(v); const safe = /^[=+\-@]/.test(s) && !/^-?\d/.test(s) ? `'${s}` : s; return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe; };
@@ -22,28 +23,37 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<Sort>('rank');
 
+  const candidates = useMemo(() =>
+    (data?.rows ?? []).filter((x): x is ScanRow & { plan: NonNullable<ScanRow['plan']> } => !!x.plan && !x.choppy),
+  [data]);
+  const live = useLiveQuotes(candidates.map(p => p.symbol));
   const plans = useMemo(() => {
-    let r = (data?.rows ?? []).filter((x): x is ScanRow & { plan: NonNullable<ScanRow['plan']> } => !!x.plan && !x.choppy);
+    let r = [...candidates];
     if (side !== 'all') r = r.filter(x => x.plan.side === side);
-    if (atEntry) r = r.filter(x => x.plan.trigger === 'at-entry');
+    if (atEntry) r = r.filter(x => planReadiness(x.plan, live[x.symbol]?.ltp ?? x.ltp) === 'entry-level-reached');
     if (minScore) r = r.filter(x => x.score >= minScore);
     if (hideBan) r = r.filter(x => !x.ctx.flags.ban);
     if (q) r = r.filter(x => x.symbol.includes(q) || x.name.toUpperCase().includes(q));
     const key = (x: (typeof r)[number]) => sort === 'rank' ? -x.rank : sort === 'score' ? -x.score : sort === 'dist' ? x.plan.distPct : sort === 'rr' ? -x.plan.tps[1].r : sort === 'risk' ? x.plan.riskPct : 0;
     return sort === 'symbol' ? [...r].sort((a, b) => a.symbol.localeCompare(b.symbol)) : [...r].sort((a, b) => key(a) - key(b));
-  }, [data, side, atEntry, minScore, hideBan, q, sort]);
+  }, [candidates, live, side, atEntry, minScore, hideBan, q, sort]);
 
-  const live = useLiveQuotes(plans.slice(0, 100).map(p => p.symbol));
   const totals = useMemo(() => {
-    const all = (data?.rows ?? []).filter(x => x.plan && !x.choppy);
+    const all = candidates;
     return { all: all.length, long: all.filter(x => x.plan!.side === 'bull').length, short: all.filter(x => x.plan!.side === 'bear').length,
-      atEntry: all.filter(x => x.plan!.trigger === 'at-entry').length, noPlan: (data?.scanned ?? 0) - all.length };
-  }, [data]);
+      atEntry: all.filter(x => planReadiness(x.plan, live[x.symbol]?.ltp ?? x.ltp) === 'entry-level-reached').length,
+      noPlan: (data?.scanned ?? 0) - all.length };
+  }, [data, candidates, live]);
+
+  const statusText = (r: (typeof candidates)[number]) => {
+    const p = r.plan, ltp = live[r.symbol]?.ltp ?? r.ltp;
+    return planStatusMessage(p, ltp);
+  };
 
   const exportCsv = () => {
     const head = ['Symbol', 'Direction', 'Score', 'Last traded price', 'Entry status', 'Entry price', 'Stop-loss price', 'Risk %', 'Take-profit 1', 'TP1 risk multiple', 'Take-profit 2', 'TP2 risk multiple', 'Take-profit 3', 'TP3 risk multiple', 'Invalidation price', 'Plan validity', 'Market flags'];
     const lines = plans.map(r => { const p = r.plan; return [r.symbol, p.side === 'bull' ? 'LONG' : 'SHORT', r.score, live[r.symbol]?.ltp ?? r.ltp,
-      p.trigger === 'at-entry' ? 'At entry' : `Wait ${p.distPct.toFixed(2)}%`, p.entry.toFixed(2), p.sl.toFixed(2), p.riskPct.toFixed(2),
+      statusText(r), p.entry.toFixed(2), p.sl.toFixed(2), p.riskPct.toFixed(2),
       ...p.tps.flatMap(t => [t.price.toFixed(2), t.r.toFixed(2)]), p.invalidation.toFixed(2), p.validity,
       [r.ctx.flags.ban ? 'F&O ban' : '', r.ctx.flags.earnings ? `Results ${r.ctx.flags.earnings}` : ''].filter(Boolean).join('; ')].map(csvCell).join(','); });
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
@@ -68,14 +78,15 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
         <div className="card stat"><b className="grad">{data ? totals.all : '—'}</b><span className="muted">Valid plans</span></div>
         <div className="card stat"><b className="bull">{data ? totals.long : '—'}</b><span className="muted">Long</span></div>
         <div className="card stat"><b className="bear">{data ? totals.short : '—'}</b><span className="muted">Short</span></div>
-        <div className="card stat"><b style={{ color: 'var(--sky)' }}>{data ? totals.atEntry : '—'}</b><span className="muted">Entry triggered</span></div>
+        <div className="card stat"><b style={{ color: 'var(--sky)' }}>{data ? totals.atEntry : '—'}</b><span className="muted">At/through entry</span></div>
       </div>
+      <p className="dim" style={{ fontSize: 12, marginTop: 8 }}>“Price at/through entry” compares the latest quote with the planned entry; it does not confirm an order fill.</p>
 
       <div className="toolbar" style={{ margin: '18px 0 14px' }}>
         <input className="input" placeholder="Search symbol…" value={q} maxLength={30} onChange={e => setQ(e.target.value.toUpperCase().replace(/[^A-Z0-9&\- ]/g, ''))} aria-label="Search symbol" />
         <div className="seg" role="tablist" aria-label="Side">{(['all', 'bull', 'bear'] as const).map(s => <button key={s} type="button" className={side === s ? 'on' : ''} onClick={() => setSide(s)}>{s === 'all' ? 'All' : s === 'bull' ? 'Long' : 'Short'}</button>)}</div>
         <div className="seg" role="tablist" aria-label="Minimum score">{[0, 50, 60, 70].map(m => <button key={m} type="button" className={minScore === m ? 'on' : ''} onClick={() => setMinScore(m)}>{m ? `Score ≥ ${m}` : 'Any score'}</button>)}</div>
-        <label className="muted chk"><input type="checkbox" checked={atEntry} onChange={e => setAtEntry(e.target.checked)} />Price at entry</label>
+        <label className="muted chk"><input type="checkbox" checked={atEntry} onChange={e => setAtEntry(e.target.checked)} />Price at/through entry</label>
         <label className="muted chk"><input type="checkbox" checked={hideBan} onChange={e => setHideBan(e.target.checked)} />Exclude securities under F&amp;O ban</label>
         <span className="spacer" />
         <button type="button" className="btn" onClick={exportCsv} disabled={!plans.length}>Export CSV</button>
@@ -92,15 +103,14 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
             </tr></thead>
             <tbody>
               {plans.map(r => {
-                const p = r.plan, l = live[r.symbol], ltp = l?.ltp ?? r.ltp, bull = p.side === 'bull';
-                const stopped = bull ? ltp <= p.sl : ltp >= p.sl;
+                const p = r.plan, l = live[r.symbol], ltp = l?.ltp ?? r.ltp, bull = p.side === 'bull', state = planReadiness(p, ltp);
                 return (
                   <tr key={r.symbol}>
                     <td><Link href={`/chart/${encodeURIComponent(r.symbol)}?tf=${tf}`} className="sym-link">{r.symbol}</Link></td>
                     <td><span className={`pill ${bull ? 'bullp' : 'bearp'} pill-sm`}>{bull ? 'LONG' : 'SHORT'}</span></td>
                     <td className="mono"><b>{r.score}</b></td>
                     <td className="mono">{f2(ltp)} <span className={(l?.changePct ?? r.changePct ?? 0) >= 0 ? 'bull' : 'bear'}>{pct(l?.changePct ?? r.changePct)}</span></td>
-                    <td>{stopped ? <span className="bear">Stop loss breached — do not enter</span> : p.trigger === 'at-entry' ? <span style={{ color: 'var(--sky)', fontWeight: 700 }}>● Entry triggered</span> : <span className="dim">Await entry · {p.distPct.toFixed(2)}% away</span>}</td>
+                    <td className={state === 'stop-breached' || state === 'invalidation-breached' ? 'bear' : state === 'entry-level-reached' ? 'bull' : 'dim'}>{statusText(r)}</td>
                     <td className="mono grad" style={{ fontWeight: 700 }}>{f2(p.entry)}</td>
                     <td className="mono bear">{f2(p.sl)} <small className="dim">({p.riskPct.toFixed(2)}%)</small></td>
                     {p.tps.map((t, i) => <td key={i} className="mono bull" title={t.source}>{f2(t.price)} <small className="dim">{t.r.toFixed(1)}R</small></td>)}
@@ -118,9 +128,8 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
       <div className="mobile-data-list plans-mobile">
         {loading && !data ? <div className="skeleton" style={{ height: 220 }} />
           : plans.length ? plans.map(r => {
-            const p = r.plan, l = live[r.symbol], ltp = l?.ltp ?? r.ltp, bull = p.side === 'bull';
-            const stopped = bull ? ltp <= p.sl : ltp >= p.sl;
-            const status = stopped ? 'Stop loss breached — do not enter' : p.trigger === 'at-entry' ? 'Entry triggered' : `Await entry · ${p.distPct.toFixed(2)}% away`;
+            const p = r.plan, l = live[r.symbol], ltp = l?.ltp ?? r.ltp, bull = p.side === 'bull', state = planReadiness(p, ltp);
+            const status = statusText(r);
             return (
               <article className="card mobile-plan" key={r.symbol}>
                 <div className="mobile-plan-head">
@@ -130,7 +139,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
                 </div>
                 <div className="mobile-plan-quote">
                   <span><small>Last traded price</small><b className="mono">{f2(ltp)}</b> <span className={(l?.changePct ?? r.changePct ?? 0) >= 0 ? 'bull' : 'bear'}>{pct(l?.changePct ?? r.changePct)}</span></span>
-                  <b className={stopped ? 'bear' : p.trigger === 'at-entry' ? 'bull' : 'muted'}>{status}</b>
+                  <b className={state === 'stop-breached' || state === 'invalidation-breached' ? 'bear' : state === 'entry-level-reached' ? 'bull' : 'muted'}>{status}</b>
                 </div>
                 <div className="mobile-plan-levels">
                   <div><small>Entry</small><b className="mono">{f2(p.entry)}</b></div>

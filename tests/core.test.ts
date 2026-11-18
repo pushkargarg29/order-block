@@ -4,6 +4,7 @@ import { resample, ema } from '../lib/indicators';
 import { classifyOi, stockRegime } from '../lib/context';
 import { buildPlan, buildSeries, detect } from '../lib/smc';
 import { isDailyPlanTimeExit, isPlanEntryValid, isZoneAvailableAtTouch } from '../lib/backtest';
+import { planReadiness } from '../lib/plan-status';
 import { hasMarketSessionStartedToday } from '../lib/time';
 import { patchLast } from '../lib/upstox';
 import type { Candle, Zone } from '../lib/types';
@@ -88,6 +89,19 @@ test('backtest entry and exit windows follow the published plan validity', () =>
   assert.equal(isDailyPlanTimeExit(10, true), false);
   assert.equal(isZoneAvailableAtTouch(session + 86400000, session), true);
   assert.equal(isZoneAvailableAtTouch(session, session + 1), false);
+});
+
+test('live plan readiness distinguishes waiting, entry level, invalidation and stop', () => {
+  const bull = { side: 'bull' as const, entry: 100, sl: 96, invalidation: 97 } as const;
+  const bear = { side: 'bear' as const, entry: 100, sl: 104, invalidation: 103 } as const;
+  assert.equal(planReadiness(bull, 101), 'awaiting-entry');
+  assert.equal(planReadiness(bull, 100), 'entry-level-reached');
+  assert.equal(planReadiness(bull, 96.5), 'invalidation-breached');
+  assert.equal(planReadiness(bull, 96), 'stop-breached');
+  assert.equal(planReadiness(bear, 99), 'awaiting-entry');
+  assert.equal(planReadiness(bear, 100), 'entry-level-reached');
+  assert.equal(planReadiness(bear, 103.5), 'invalidation-breached');
+  assert.equal(planReadiness(bear, 104), 'stop-breached');
 });
 
 test('structure break creates an order block tradable only after its availability delay', () => {

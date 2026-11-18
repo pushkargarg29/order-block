@@ -12,6 +12,7 @@ import { cachedChart, prefetchChart, rememberChart } from '@/components/chartCac
 import { ScoreBreakdown, OiPanel, HtfPanel, RegimePanel, WallsPanel, CtxChips, RegimeBar, ModelBadge } from '@/components/Context';
 import BacktestPanel from '@/components/BacktestPanel';
 import StockSearch from '@/components/StockSearch';
+import { planReadiness, planStatusMessage } from '@/lib/plan-status';
 
 type Resp = { symbol: string; name: string; lot: number; tf: Timeframe; candles: Candle[]; analysis: Analysis | null; ctx: Context | null; regime: RegimeInfo | null;
   model: { fitted: boolean; trainedAt: string | null }; quote: { ltp: number; changePct: number; receivedAt: number } | null; at: number };
@@ -48,6 +49,8 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
 
   const a = d?.analysis ?? null;
   const biasPill = a ? (a.bias === 'bullish' ? 'bullp' : a.bias === 'bearish' ? 'bearp' : 'neutp') : 'neutp';
+  const planState = a?.plan ? planReadiness(a.plan, d?.quote?.ltp ?? a.last) : null;
+  const entryStatus = a?.plan ? planStatusMessage(a.plan, d?.quote?.ltp ?? a.last) : '';
 
   return (
     <div className="container">
@@ -116,10 +119,11 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
                 <div><small>{a.plan.side === 'bull' ? 'Long entry' : 'Short entry'}</small><b className="grad">{f2(a.plan.entry)}</b></div>
                 <div><small>Stop loss</small><b className="bear">{f2(a.plan.sl)}</b></div>
                 <div><small>Risk per trade</small><b>{a.plan.riskPct.toFixed(2)}%</b></div>
-                <div><small>Entry status</small><b style={{ color: a.plan.trigger === 'at-entry' ? 'var(--sky)' : undefined }}>{a.plan.trigger === 'at-entry' ? 'At entry' : `Wait · ${a.plan.distPct.toFixed(2)}% away`}</b></div>
+                <div><small>Entry status</small><b style={{ color: planState === 'entry-level-reached' ? 'var(--sky)' : planState === 'stop-breached' || planState === 'invalidation-breached' ? 'var(--bear)' : undefined }}>{entryStatus}</b></div>
               </div>
               <div className="tp-grid">{a.plan.tps.map((t, i) => <div key={i}><small>Take profit {i + 1} (TP{i + 1})</small><b>{f2(t.price)}</b><span>{t.r.toFixed(2)}R · {t.source}</span></div>)}</div>
               <ol className="exit-rules">{a.plan.exitRules.map(x => <li key={x}>{x}</li>)}</ol>
+              <p className="dim" style={{ fontSize: 12, marginTop: 8 }}>Entry status compares the latest quote with the planned level; it does not confirm an order fill.</p>
               <p className="dim" style={{ fontSize: 12, marginTop: 8 }}>{a.plan.validity}. Algorithmic plan, not a recommendation.</p>
             </> : <p className="muted">No trade plan: price is range-bound with low directional conviction.</p>}
           </div>

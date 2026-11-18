@@ -92,15 +92,22 @@ export function useScan(tf: Timeframe, initial?: ScanResult | null) {
 /** Polls LTP for a set of symbols every 5s during market hours */
 export function useLiveQuotes(symbols: string[]) {
   const [q, setQ] = useState<Record<string, { ltp: number; changePct: number }>>({});
-  const key = symbols.slice(0, 100).join(',');
+  const key = Array.from(new Set(symbols)).join(',');
   useEffect(() => {
     if (!key) return;
     let stop = false;
     const tick = async () => {
       if (document.visibilityState !== 'visible') return;
       try {
-        const r = await fetch(`/api/quotes?symbols=${encodeURIComponent(key)}`);
-        if (r.ok) { const j = await r.json(); if (!stop) setQ(j.quotes || {}); }
+        const symbols = key.split(',');
+        const chunks = Array.from({ length: Math.ceil(symbols.length / 100) }, (_, i) => symbols.slice(i * 100, (i + 1) * 100));
+        const results = await Promise.all(chunks.map(async chunk => {
+          const r = await fetch(`/api/quotes?symbols=${encodeURIComponent(chunk.join(','))}`);
+          if (!r.ok) return {};
+          const j = await r.json();
+          return j.quotes || {};
+        }));
+        if (!stop) setQ(Object.assign({}, ...results));
       } catch { /* ignore */ }
     };
     tick();
