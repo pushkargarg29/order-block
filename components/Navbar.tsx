@@ -9,7 +9,7 @@ const links = [
   { href: '/', label: 'Home' },
   { href: '/board', label: 'Liquidity Board' },
   { href: '/plans', label: 'Trade Plans' },
-  { href: '/chart/SBIN', label: 'Order Block Charts' },
+  { href: '/chart', label: 'Order Block Charts' },
   { href: '/xray', label: 'Market X-Ray' },
   { href: '/methodology', label: 'Methodology' }
 ];

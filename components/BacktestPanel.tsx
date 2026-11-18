@@ -6,7 +6,7 @@ import { fmtIST } from '@/lib/time';
 
 type Resp = { symbol: string; tf: Timeframe; bars: number; from: number | null; to: number | null; all: BtStats; signals: BtStats;
   recent: { t: number; side: 'bull' | 'bear'; entry: number; sl: number; p: number; hit1R: boolean; r2: number; bars: number }[];
-  model: { calibrated: boolean; trainedAt: string | null; samples: number; oos: { auc: number; brier: number; baseRate: number; samples: number } | null };
+  model: { fitted: boolean; trainedAt: string | null; samples: number; oos: { auc: number; brier: number; baseRate: number; samples: number } | null };
   costPctPerSide: number };
 
 const P = (x: number) => `${(x * 100).toFixed(1)}%`;
@@ -69,9 +69,9 @@ export default function BacktestPanel({ symbol, tf }: { symbol: string; tf: Time
                 </div>
               ))}
               <p className="dim" style={{ fontSize: 12, marginTop: 8 }}>
-                {d.model.calibrated
-                  ? `Model fitted ${d.model.trainedAt?.slice(0, 10)} on ${d.model.samples.toLocaleString('en-IN')} trades${d.model.oos ? ` · out-of-sample AUC ${d.model.oos.auc.toFixed(3)}` : ''}.`
-                  : 'Scores currently use prior weights; they represent calibrated probabilities only after the model is fitted to the full F&O universe.'}
+                {d.model.fitted
+                  ? `Weights fitted ${d.model.trainedAt?.slice(0, 10)} on ${d.model.samples.toLocaleString('en-IN')} trades${d.model.oos ? ` · out-of-sample AUC ${d.model.oos.auc.toFixed(3)}` : ''}. This does not guarantee probability calibration.`
+                  : 'Scores currently use prior weights and are not calibrated probabilities.'}
                 {d.signals.brier != null && ` Brier ${d.signals.brier.toFixed(3)} on this stock.`}
               </p>
             </div>

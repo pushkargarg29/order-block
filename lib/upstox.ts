@@ -1,6 +1,7 @@
 /** Upstox REST client: rate-limited, cached. Token is read server-side only. */
+import { createHash } from 'node:crypto';
 import type { Candle, Timeframe, OptionWalls } from './types';
-import { istDate, istDateMinus, istDayNum, isMarketOpen } from './time';
+import { hasMarketSessionStartedToday, istDate, istDateMinus, istDayNum, isMarketOpen } from './time';
 import { acquire } from './ratelimit';
 import { memo } from './cache';
 import { unstable_cache } from 'next/cache';
@@ -8,6 +9,11 @@ import { resample } from './indicators';
 
 const BASE = 'https://api.upstox.com';
 export class UpstoxError extends Error { constructor(message: string, public status = 502) { super(message); } }
+
+function sharedData<T>(key: string, revalidate: number, load: () => Promise<T>): Promise<T> {
+  if (process.env.NEXT_RUNTIME !== 'nodejs') return load();
+  return unstable_cache(load, ['stoclio-v6', key], { revalidate })();
+}
 
 function token(): string {
   const t = process.env.UPSTOX_ACCESS_TOKEN;
@@ -18,7 +24,15 @@ function token(): string {
 export async function get(bucket: string, path: string, attempt = 0): Promise<any> {
   await acquire(bucket);
   const res = await fetch(BASE + path, { headers: { Authorization: `Bearer ${token()}`, Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(15000) });
-  if (res.status === 429 && attempt < 3) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); return get(bucket, path, attempt + 1); }
+  if (res.status === 429 && attempt < 3) {
+    const header = res.headers.get('retry-after');
+    const seconds = header ? Number(header) : NaN;
+    const date = header && !Number.isFinite(seconds) ? Date.parse(header) : NaN;
+    const retryAfter = Number.isFinite(seconds) ? seconds * 1000 : Number.isFinite(date) ? Math.max(0, date - Date.now()) : 0;
+    const backoff = Math.max(retryAfter, 1000 * (2 ** attempt)) + Math.random() * 250;
+    await new Promise(r => setTimeout(r, backoff));
+    return get(bucket, path, attempt + 1);
+  }
   if (!res.ok) {
     if (res.status === 401) { console.error('[stoclio] data provider rejected the access token (401)'); throw new UpstoxError('Live market data connection needs to be renewed.', 503); }
     console.error(`[stoclio] data provider HTTP ${res.status} for ${path.split('?')[0]}`);
@@ -60,16 +74,16 @@ function dayHistory(key: string, unit: 'minutes' | 'days', interval: number, day
     const today = istDayNum(Date.now());
     return (await getHistory(key, unit, interval, days)).filter(c => istDayNum(c.t) < today);
   };
-  return memo(id, 20 * 3600000, async () => {
-    try { return await unstable_cache(load, ['stoclio-v6', id], { revalidate: 72000 })(); }
-    catch { return load(); } // outside Next.js (scripts) or data cache unavailable
-  });
+  return memo(id, 20 * 3600000, () => sharedData(id, 72000, load));
 }
 
 /** Today's 5-minute candles: one shared request per stock serves 5m/15m/1h. */
 export function getToday5m(key: string, ttl = 240000): Promise<Candle[]> {
-  return memo(`intra5:${key}`, isMarketOpen() ? ttl : 1800000, async () =>
-    parse(await get('intraday', `/v3/historical-candle/intraday/${enc(key)}/minutes/5`)));
+  if (!hasMarketSessionStartedToday()) return Promise.resolve([]);
+  const id = `intra5:${key}:${istDate()}`;
+  const cacheTtl = isMarketOpen() ? ttl : 1800000;
+  return memo(id, cacheTtl, () => sharedData(id, Math.ceil(cacheTtl / 1000), async () =>
+    parse(await get('intraday', `/v3/historical-candle/intraday/${enc(key)}/minutes/5`))));
 }
 
 /** Daily candles (420d) — history cached per day; today's bar is appended from a live quote by the caller. */
@@ -86,18 +100,18 @@ export async function getCandles(key: string, tf: Timeframe, todayTtl?: number):
 }
 
 /** Patch the forming bar with the latest traded price (keeps analysis live between candle refreshes). */
-export function patchLast(c: Candle[], ltp: number | undefined, tf: Timeframe, dayOhlc?: { o: number; h: number; l: number; v: number }): Candle[] {
+export function patchLast(c: Candle[], ltp: number | undefined, tf: Timeframe, dayOhlc?: { o: number; h: number; l: number; v: number }, now = Date.now()): Candle[] {
   if (!ltp || !c.length) return c;
   const out = c.slice();
-  const now = Date.now();
   if (tf === '1d') {
+    if (!hasMarketSessionStartedToday(new Date(now))) return out;
     const last = out[out.length - 1];
     const today = istDayNum(now);
-    if (istDayNum(last.t) < today && dayOhlc && dayOhlc.o > 0) out.push({ t: Date.parse(istDate() + 'T00:00:00+05:30'), o: dayOhlc.o, h: Math.max(dayOhlc.h, ltp), l: Math.min(dayOhlc.l, ltp), c: ltp, v: dayOhlc.v });
+    if (istDayNum(last.t) < today && dayOhlc && dayOhlc.o > 0) out.push({ t: Date.parse(istDate(new Date(now)) + 'T00:00:00+05:30'), o: dayOhlc.o, h: Math.max(dayOhlc.h, ltp), l: Math.min(dayOhlc.l, ltp), c: ltp, v: dayOhlc.v });
     else if (istDayNum(last.t) === today) out[out.length - 1] = { ...last, c: ltp, h: Math.max(last.h, ltp), l: Math.min(last.l, ltp) };
     return out;
   }
-  if (!isMarketOpen()) return out;
+  if (!isMarketOpen(new Date(now))) return out;
   const last = out[out.length - 1];
   out[out.length - 1] = { ...last, c: ltp, h: Math.max(last.h, ltp), l: Math.min(last.l, ltp) };
   return out;
@@ -127,12 +141,17 @@ async function fetchQuotes(keys: string[]): Promise<Map<string, Quote>> {
 /** Quotes with a short shared cache: many browsers polling = one upstream request. */
 export async function getQuotes(keys: string[], ttl = 4000): Promise<Map<string, Quote>> {
   const sorted = Array.from(new Set(keys)).sort();
-  return memo(`q:${sorted.join(',')}`, ttl, () => fetchQuotes(sorted));
+  const id = `quotes:${createHash('sha256').update(sorted.join(',')).digest('hex')}`;
+  return memo(id, ttl, async () => {
+    const rows = await sharedData(id, Math.max(1, Math.ceil(ttl / 1000)), async () => Array.from((await fetchQuotes(sorted)).values()));
+    return new Map(rows.map(quote => [quote.key, quote]));
+  });
 }
 
 /** Monthly option chain → OI walls, PCR, max pain, ATM IV. Cached 10 min. */
 export function getOptionWalls(underlyingKey: string): Promise<OptionWalls | null> {
-  return memo(`oc:${underlyingKey}`, 600000, async () => {
+  const id = `oc:${underlyingKey}`;
+  return memo(id, 600000, () => sharedData(id, 600, async () => {
     const raw = await get('optionchain', `/v2/option/chain?instrument_key=${enc(underlyingKey)}&expiry_date=current_month`);
     const rows: any[] = raw?.data ?? [];
     if (!rows.length) return null;
@@ -160,15 +179,16 @@ export function getOptionWalls(underlyingKey: string): Promise<OptionWalls | nul
       topCalls: [...strikes].sort((a, b) => b.cOi - a.cOi).slice(0, 3).map(s => ({ strike: s.k, oi: s.cOi, chgOi: s.cOi - s.cPrev })),
       topPuts: [...strikes].sort((a, b) => b.pOi - a.pOi).slice(0, 3).map(s => ({ strike: s.k, oi: s.pOi, chgOi: s.pOi - s.pPrev }))
     };
-  });
+  }));
 }
 
 /** Previous-session futures OI (from futures daily candles). Cached for the IST day. */
 export function getPrevFutOi(futKey: string): Promise<number | null> {
-  return memo(`prevoi:${futKey}:${istDate()}`, 20 * 3600000, async () => {
+  const id = `prevoi:${futKey}:${istDate()}`;
+  return memo(id, 20 * 3600000, () => sharedData(id, 72000, async () => {
     const raw = await get('historical', `/v3/historical-candle/${enc(futKey)}/days/1/${istDate()}/${istDateMinus(12)}`);
     const today = istDayNum(Date.now());
     const prior = parse(raw).filter(c => istDayNum(c.t) < today && c.oi != null);
     return prior.length ? (prior[prior.length - 1].oi as number) : null;
-  });
+  }));
 }

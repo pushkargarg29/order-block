@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "note": "Empty = uncalibrated prior weights are used. Run `npm run backtest` with your Upstox token to fit and overwrite this file, then redeploy.",
+  "note": "Empty = prior weights are used and are not fitted or calibrated. Run `npm run backtest` and review out-of-sample metrics before deploying fitted weights.",
   "models": {}
 }

@@ -16,7 +16,7 @@ export default function Footer() {
             <h4>Platform</h4>
             <Link href="/board">Liquidity Board</Link>
             <Link href="/plans">Trade Plans</Link>
-            <Link href="/chart/SBIN">Order Block Charts</Link>
+            <Link href="/chart">Order Block Charts</Link>
             <Link href="/xray">Market X-Ray</Link>
           </div>
           <div>

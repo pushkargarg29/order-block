@@ -1,12 +1,21 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import type { Timeframe } from '@/lib/types';
 
 type Stock = { symbol: string; name: string };
 
-export default function StockSearch({ className = '', onNavigate }: { className?: string; onNavigate?: () => void }) {
+export default function StockSearch({ className = '', onNavigate, timeframe, placeholder = 'Search active NSE F&O stocks...', label = 'Search active NSE futures and options stocks' }: {
+  className?: string;
+  onNavigate?: () => void;
+  timeframe?: Timeframe;
+  placeholder?: string;
+  label?: string;
+}) {
   const router = useRouter();
+  const inputId = useId();
+  const resultsId = useId();
   const [query, setQuery] = useState('');
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,7 +50,8 @@ export default function StockSearch({ className = '', onNavigate }: { className?
   const openStock = (symbol: string) => {
     setOpen(false);
     onNavigate?.();
-    router.push(`/chart/${encodeURIComponent(symbol)}`);
+    const tf = timeframe ? `?tf=${timeframe}` : '';
+    router.push(`/chart/${encodeURIComponent(symbol)}${tf}`);
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -52,17 +62,17 @@ export default function StockSearch({ className = '', onNavigate }: { className?
   return (
     <div className={`stock-search ${className}`}>
       <form className="stock-search-form" role="search" onSubmit={submit}>
-        <label className="sr-only" htmlFor="navbar-stock-search">Search active NSE futures and options stocks</label>
+        <label className="sr-only" htmlFor={inputId}>{label}</label>
         <input
-          id="navbar-stock-search"
+          id={inputId}
           className="input"
           type="search"
-          placeholder="Search active NSE F&O stocks..."
+          placeholder={placeholder}
           autoComplete="off"
           role="combobox"
           aria-autocomplete="list"
           aria-expanded={open && matches.length > 0}
-          aria-controls="navbar-stock-results"
+          aria-controls={resultsId}
           value={query}
           onFocus={() => { setOpen(true); loadStocks(); }}
           onChange={event => {
@@ -86,7 +96,7 @@ export default function StockSearch({ className = '', onNavigate }: { className?
           {loading && <p className="stock-search-message" role="status">Loading stock symbols...</p>}
           {error && <p className="stock-search-message err" role="alert">{error}</p>}
           {!loading && !error && matches.length > 0 && (
-            <ul id="navbar-stock-results" role="listbox" aria-label="Matching stocks">
+            <ul id={resultsId} role="listbox" aria-label="Matching stocks">
               {matches.map(stock => (
                 <li key={stock.symbol} role="option" aria-selected="false">
                   <button type="button" onClick={() => openStock(stock.symbol)}>

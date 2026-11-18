@@ -55,7 +55,7 @@ export default function BoardClient({ initial = null }: { initial?: ScanResult |
           <h1><span className="grad">Liquidity Board</span></h1>
           <p className="muted" style={{ marginTop: 6 }}>Highest-ranked order-block setups across active NSE F&amp;O stocks, updated in real time.</p>
         </div>
-        <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
+        <div className="toolbar">{data && <ModelBadge fitted={data.model.fitted} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
       <RegimeBar r={data?.regime ?? null} />
 
@@ -94,7 +94,7 @@ export default function BoardClient({ initial = null }: { initial?: ScanResult |
             : <p className="muted">No qualifying bearish setups are currently available.</p>}
         </div>
       </div>
-      <p className="dim" style={{ fontSize: 13, marginTop: 18 }}>Score = the model-estimated probability that an order block holds to +1R, adjusted for open-interest build-up, higher-timeframe alignment, the index and VIX regime, options open-interest walls and upcoming results. Ranking also accounts for proximity to the block. Entry is set at the block edge; the stop loss is placed 0.2 ATR beyond the block; targets TP1, TP2 and TP3 are set at a minimum of 1R, 2R and 3R and may align with liquidity, market structure or open-interest walls. Securities under an F&amp;O ban are excluded. For educational purposes only; this is not investment advice.</p>
+      <p className="dim" style={{ fontSize: 13, marginTop: 18 }}>The score combines the model output with open-interest build-up, higher-timeframe alignment, the index and VIX regime, options open-interest walls and upcoming results. Prior model weights are not calibrated probabilities. Ranking also accounts for proximity to the block. Entry is set at the block edge; the stop loss is placed 0.2 ATR beyond the block; targets TP1, TP2 and TP3 are set at a minimum of 1R, 2R and 3R and may align with liquidity, market structure or open-interest walls. Securities under an F&amp;O ban are excluded. For educational purposes only; this is not investment advice.</p>
     </div>
   );
 }

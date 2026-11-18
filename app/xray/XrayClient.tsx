@@ -14,6 +14,11 @@ type Key = 'symbol' | 'ltp' | 'changePct' | 'score' | 'rank' | 'er' | 'rsi' | 'r
 const val = (r: ScanRow, k: Key): number | string => {
   switch (k) { case 'oi': return r.ctx.oi?.oiChgPct ?? -999; case 'htf': return r.ctx.htf?.align ?? -9; case 'pcr': return r.ctx.walls?.pcr ?? -1; case 'symbol': return r.symbol; case 'dist': return r.zone?.distATR ?? 99; case 'rr': return r.plan?.rr ?? -1; case 'changePct': return r.changePct ?? 0; default: return r[k] as number; }
 };
+const csvCell = (value: unknown) => {
+  const text = value == null ? '' : String(value);
+  const safe = /^[=+\-@]/.test(text) && !/^-?\d/.test(text) ? `'${text}` : text;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+};
 
 export default function XrayClient({ initial = null }: { initial?: ScanResult | null }) {
   const [tf, setTf] = useState<Timeframe>('15m');
@@ -40,17 +45,20 @@ export default function XrayClient({ initial = null }: { initial?: ScanResult | 
   const th = (k: Key, label: string) => <th onClick={() => setSort(s => ({ k, d: s.k === k ? (s.d === 1 ? -1 : 1) : -1 }))}>{label}{sort.k === k ? (sort.d === -1 ? ' ↓' : ' ↑') : ''}</th>;
 
   const exportCsv = () => {
-    const head = ['Symbol', 'Last traded price', 'Change %', 'Directional bias', 'Score', 'Model probability', 'Open-interest build-up', 'Open-interest change %', 'Higher-timeframe alignment', 'Reference index', 'Call open-interest wall', 'Put open-interest wall', 'Put-call ratio', 'F&O ban', 'Results date', 'Order-block bottom', 'Order-block top', 'Distance in ATR', 'Support', 'Resistance', 'Liquidity level', 'Entry', 'Stop loss', 'TP1', 'TP2', 'TP3', 'TP1 risk multiple', 'Efficiency ratio', 'Relative strength index', 'Relative volume'];
-    const lines = rows.map(r => [r.symbol, r.ltp, r.changePct?.toFixed(2), r.bias, r.score, r.pModel?.toFixed(3), r.ctx.oi?.buildup, r.ctx.oi?.oiChgPct.toFixed(2), r.ctx.htf?.align.toFixed(2), r.ctx.regime?.ref, r.ctx.walls?.callWall, r.ctx.walls?.putWall, r.ctx.walls?.pcr?.toFixed(2), r.ctx.flags.ban ? 'Y' : '', r.ctx.flags.earnings ?? '', r.zone?.bottom, r.zone?.top, r.zone?.distATR.toFixed(2), r.support, r.resistance, r.liquidity, r.plan?.entry.toFixed(2), r.plan?.sl.toFixed(2), r.plan?.tps[0].price.toFixed(2), r.plan?.tps[1].price.toFixed(2), r.plan?.tps[2].price.toFixed(2), r.plan?.rr.toFixed(2), r.er.toFixed(2), r.rsi.toFixed(1), r.rvol.toFixed(2)].map(v => v ?? '').join(','));
-    const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `stoclio-xray-${tf}.csv`; a.click(); URL.revokeObjectURL(a.href);
+    const head = ['Symbol', 'Last traded price', 'Change %', 'Directional bias', 'Score', 'Model output (not calibrated)', 'Open-interest build-up', 'Open-interest change %', 'Higher-timeframe alignment', 'Reference index', 'Call open-interest wall', 'Put open-interest wall', 'Put-call ratio', 'F&O ban', 'Results date', 'Order-block bottom', 'Order-block top', 'Distance in ATR', 'Support', 'Resistance', 'Liquidity level', 'Entry', 'Stop loss', 'TP1', 'TP2', 'TP3', 'TP1 risk multiple', 'Efficiency ratio', 'Relative strength index', 'Relative volume'];
+    const lines = rows.map(r => [r.symbol, r.ltp, r.changePct?.toFixed(2), r.bias, r.score, r.pModel?.toFixed(3), r.ctx.oi?.buildup, r.ctx.oi?.oiChgPct.toFixed(2), r.ctx.htf?.align.toFixed(2), r.ctx.regime?.ref, r.ctx.walls?.callWall, r.ctx.walls?.putWall, r.ctx.walls?.pcr?.toFixed(2), r.ctx.flags.ban ? 'Y' : '', r.ctx.flags.earnings ?? '', r.zone?.bottom, r.zone?.top, r.zone?.distATR.toFixed(2), r.support, r.resistance, r.liquidity, r.plan?.entry.toFixed(2), r.plan?.sl.toFixed(2), r.plan?.tps[0].price.toFixed(2), r.plan?.tps[1].price.toFixed(2), r.plan?.tps[2].price.toFixed(2), r.plan?.rr.toFixed(2), r.er.toFixed(2), r.rsi.toFixed(1), r.rvol.toFixed(2)].map(csvCell).join(','));
+    const csv = ['\uFEFF' + head.map(csvCell).join(','), ...lines].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `stoclio-xray-${tf}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
     <div className="container">
       <div className="page-head">
         <div><h1><span className="grad">Market X-Ray</span></h1><p className="muted" style={{ marginTop: 6 }}>Market structure, open-interest and options data for every active NSE F&amp;O stock in one sortable view.</p></div>
-        <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
+        <div className="toolbar">{data && <ModelBadge fitted={data.model.fitted} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
       <RegimeBar r={data?.regime ?? null} />
       <div className="toolbar" style={{ marginBottom: 16 }}>
@@ -133,7 +141,7 @@ export default function XrayClient({ initial = null }: { initial?: ScanResult | 
                   <div><small>Market flags</small><b>{r.ctx.flags.ban ? 'F&O ban' : r.ctx.flags.earnings ? `Results ${r.ctx.flags.earnings}` : 'None'}</b></div>
                   <div><small>Most recent event</small><b>{r.lastEvent ? `${r.lastEvent.kind} ${r.lastEvent.dir === 'bull' ? '↑' : '↓'}` : '—'}</b></div>
                 </div>
-                <ScoreDetails pModel={r.pModel} score={r.score} rank={r.rank} calibrated={!!data?.model.calibrated} ctx={r.ctx} />
+                <ScoreDetails pModel={r.pModel} score={r.score} rank={r.rank} fitted={!!data?.model.fitted} ctx={r.ctx} />
               </details>
             </article>
           )) : <p className="muted">No instruments match the selected filters.</p>}

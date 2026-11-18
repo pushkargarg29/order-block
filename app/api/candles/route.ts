@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
-  const blocked = guard(req); if (blocked) return blocked;
+  const blocked = await guard(req); if (blocked) return blocked;
   const sp = req.nextUrl.searchParams;
   const symbol = (sp.get('symbol') ?? '').toUpperCase();
   const tf = sp.get('tf') ?? '15m';

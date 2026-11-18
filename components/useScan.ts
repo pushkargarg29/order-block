@@ -7,27 +7,36 @@ import { isMarketOpen } from '@/lib/time';
  * Shared scan store: every component asking for the same timeframe shares ONE request
  * and ONE 5-second refresh timer (homepage hero, leaders, 3D universe, pulse strip…).
  */
-type Entry = { data: ScanResult | null; error: string | null; loading: boolean; inflight: Promise<void> | null; subs: Set<() => void>; timer: ReturnType<typeof setInterval> | null };
+type Entry = { data: ScanResult | null; error: string | null; loading: boolean; retryAt: number; inflight: Promise<void> | null; subs: Set<() => void>; timer: ReturnType<typeof setInterval> | null };
 const store = new Map<Timeframe, Entry>();
 
 function entry(tf: Timeframe): Entry {
   let e = store.get(tf);
-  if (!e) { e = { data: null, error: null, loading: true, inflight: null, subs: new Set(), timer: null }; store.set(tf, e); }
+  if (!e) { e = { data: null, error: null, loading: true, retryAt: 0, inflight: null, subs: new Set(), timer: null }; store.set(tf, e); }
   return e;
 }
 const notify = (e: Entry) => e.subs.forEach(f => f());
 
 function load(tf: Timeframe): Promise<void> {
   const e = entry(tf);
+  if (e.retryAt > Date.now()) return Promise.resolve();
   if (e.inflight) return e.inflight;
   e.inflight = (async () => {
     try {
       const r = await fetch(`/api/scan?tf=${tf}`);
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || 'Live data is temporarily unavailable.');
+      if (!r.ok) {
+        const seconds = Number(r.headers.get('Retry-After'));
+        e.retryAt = Date.now() + (Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 30000);
+        throw new Error(j.error || 'Live data is temporarily unavailable.');
+      }
       e.data = j; e.error = null;
+      e.retryAt = 0;
       try { localStorage.setItem(`stoclio:scan:${tf}`, JSON.stringify(j)); } catch { /* storage full or disabled */ }
-    } catch (err) { e.error = err instanceof Error ? err.message : 'Live data is temporarily unavailable.'; }
+    } catch (err) {
+      if (e.retryAt <= Date.now()) e.retryAt = Date.now() + 30000;
+      e.error = err instanceof Error ? err.message : 'Live data is temporarily unavailable.';
+    }
     finally { e.loading = false; e.inflight = null; notify(e); }
   })();
   return e.inflight;

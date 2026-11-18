@@ -11,21 +11,20 @@ import { isMarketOpen, fmtIST } from '@/lib/time';
 import { cachedChart, prefetchChart, rememberChart } from '@/components/chartCache';
 import { ScoreBreakdown, OiPanel, HtfPanel, RegimePanel, WallsPanel, CtxChips, RegimeBar, ModelBadge } from '@/components/Context';
 import BacktestPanel from '@/components/BacktestPanel';
+import StockSearch from '@/components/StockSearch';
 
 type Resp = { symbol: string; name: string; lot: number; tf: Timeframe; candles: Candle[]; analysis: Analysis | null; ctx: Context | null; regime: RegimeInfo | null;
-  model: { calibrated: boolean; trainedAt: string | null }; quote: { ltp: number; changePct: number; receivedAt: number } | null; at: number };
+  model: { fitted: boolean; trainedAt: string | null }; quote: { ltp: number; changePct: number; receivedAt: number } | null; at: number };
 
 export default function ChartClient({ symbol, initialTf, initial = null }: { symbol: string; initialTf: Timeframe; initial?: Resp | null }) {
   const [tf, setTf] = useState<Timeframe>(initialTf);
   const [d, setD] = useState<Resp | null>(initial);
   const [err, setErr] = useState<string | null>(null);
-  const [q, setQ] = useState(symbol);
-  const [universe, setUniverse] = useState<string[]>([]);
   const [opt, setOpt] = useState({ fvg: true, ema: true, plan: true, walls: true });
   const [view3d, setView3d] = useState(false);
   const router = useRouter();
 
-  useEffect(() => { fetch('/api/universe').then(r => r.json()).then(j => setUniverse((j.symbols || []).map((s: { symbol: string }) => s.symbol))).catch(() => {}); }, []);
+  useEffect(() => { setTf(initialTf); }, [initialTf]);
 
   useEffect(() => {
     let stop = false;
@@ -37,7 +36,7 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
       } catch (e) { if (!stop) setErr((e as Error).message); }
     };
     const fromServer = initial && initial.symbol === symbol && initial.tf === tf;
-    if (fromServer) rememberChart(symbol, tf, initial, initial!.at);
+    if (fromServer) show(initial);
     else {
       const hit = cachedChart<Resp>(symbol, tf, 120000);
       if (!hit) setD(prev => (prev && prev.symbol === symbol ? prev : null)); // keep the old chart visible while switching timeframe
@@ -48,7 +47,6 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
   }, [symbol, tf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const a = d?.analysis ?? null;
-  const go = (s: string) => { const v = s.trim().toUpperCase(); if (/^[A-Z0-9&\-]{1,20}$/.test(v)) router.push(`/chart/${encodeURIComponent(v)}?tf=${tf}`); };
   const biasPill = a ? (a.bias === 'bullish' ? 'bullp' : a.bias === 'bearish' ? 'bearp' : 'neutp') : 'neutp';
 
   return (
@@ -59,16 +57,13 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
             <h1>{symbol}</h1>
             {d?.quote && <><span className="mono" style={{ fontSize: 22 }}>{f2(d.quote.ltp)}</span><span className={`mono ${d.quote.changePct >= 0 ? 'bull' : 'bear'}`}>{pct(d.quote.changePct)}</span></>}
             {a && <span className={`pill ${biasPill}`}>{a.bias.toUpperCase()} · Score {a.score}</span>}
-            {d && <ModelBadge calibrated={d.model.calibrated} trainedAt={d.model.trainedAt} />}
+            {d && <ModelBadge fitted={d.model.fitted} trainedAt={d.model.trainedAt} />}
           </div>
           {d?.ctx && <div style={{ marginTop: 8 }}><CtxChips c={d.ctx} max={8} /></div>}
           <p className="muted" style={{ marginTop: 6 }}>{d?.name ?? 'Order-block chart'}{d?.lot ? ` · Contract lot size ${d.lot}` : ''}</p>
         </div>
         <div className="toolbar">
-          <form onSubmit={e => { e.preventDefault(); go(q); }}>
-            <input className="input" list="fno-list" value={q} onChange={e => setQ(e.target.value.toUpperCase().slice(0, 20))} placeholder="Search NSE F&O symbol…" aria-label="Search NSE F&O symbol" />
-            <datalist id="fno-list">{universe.map(s => <option key={s} value={s} />)}</datalist>
-          </form>
+          <StockSearch className="chart-stock-search" timeframe={tf} placeholder="Search NSE F&O symbol..." label="Search an active NSE F&O symbol or company" />
           <TfSwitch value={tf} onIntent={t => { if (t !== tf) prefetchChart(symbol, t).catch(() => {}); }} onChange={t => { setTf(t); router.replace(`/chart/${encodeURIComponent(symbol)}?tf=${t}`, { scroll: false }); }} />
         </div>
       </div>
@@ -143,7 +138,7 @@ export default function ChartClient({ symbol, initialTf, initial = null }: { sym
       )}
       {a && (
         <div className="grid2" style={{ marginTop: 20 }}>
-          <div className="card" style={{ padding: 'var(--card-padding)' }}><h3 style={{ marginBottom: 14 }}>Score breakdown</h3><ScoreBreakdown p={a.pModel} score={a.score} ctx={d?.ctx ?? null} /></div>
+          <div className="card" style={{ padding: 'var(--card-padding)' }}><h3 style={{ marginBottom: 14 }}>Score breakdown</h3><ScoreBreakdown p={a.pModel} score={a.score} ctx={d?.ctx ?? null} fitted={!!d?.model.fitted} /></div>
           <div className="card" style={{ padding: 'var(--card-padding)' }}><h3 style={{ marginBottom: 14 }}>Futures open-interest build-up</h3><OiPanel c={d?.ctx ?? null} /></div>
           <div className="card" style={{ padding: 'var(--card-padding)' }}><h3 style={{ marginBottom: 14 }}>Higher-timeframe agreement</h3><HtfPanel c={d?.ctx ?? null} /></div>
           <div className="card" style={{ padding: 'var(--card-padding)' }}><h3 style={{ marginBottom: 14 }}>Index and India VIX regime</h3><RegimePanel c={d?.ctx ?? null} /></div>

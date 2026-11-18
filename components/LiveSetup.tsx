@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { Analysis, Candle, ScanRow } from '@/lib/types';
 import CandleChart from './CandleChart';
+import LiveBadge from './LiveBadge';
 import { f2, pct } from './fmt';
 import { isMarketOpen } from '@/lib/time';
 
@@ -35,7 +36,7 @@ export default function LiveSetup({ initial = null }: { initial?: Top | null }) 
           <>
             <b className="setup-sym">{row.symbol}</b><span className="mono muted">{f2(row.ltp)}</span>
             <span className={`mono ${(row.changePct ?? 0) >= 0 ? 'bull' : 'bear'}`}>{pct(row.changePct)}</span>
-            <span className="spacer" /><span className="pill neutp">Live · 15-minute</span>
+            <span className="spacer" /><LiveBadge at={d?.at} sampleLabel="Scan updated" /><span className="pill neutp">15-minute scan</span>
             <span className={`pill ${bull ? 'bullp' : 'bearp'}`}>Rank 1 · {bull ? 'Bullish' : 'Bearish'} · Score {row.score}</span>
           </>
         ) : state === 'loading' ? <span className="muted">Loading current market data…</span> : null}

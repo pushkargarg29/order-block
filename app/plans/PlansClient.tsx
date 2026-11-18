@@ -60,7 +60,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
           <h1>Trade <span className="grad">Plans</span></h1>
           <p className="muted" style={{ marginTop: 6 }}>Entry, stop loss and TP1–TP3 levels for every active NSE F&amp;O stock with a valid order-block setup, recalculated with each scan.</p>
         </div>
-        <div className="toolbar">{data && <ModelBadge calibrated={data.model.calibrated} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
+        <div className="toolbar">{data && <ModelBadge fitted={data.model.fitted} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
       <RegimeBar r={data?.regime ?? null} />
 
@@ -146,7 +146,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
                     <div><small>Market flags</small><b>{r.ctx.flags.ban ? 'F&O ban' : r.ctx.flags.earnings ? `Results ${r.ctx.flags.earnings}` : 'None'}</b></div>
                   </div>
                   <ul className="mobile-exit-rules">{p.exitRules.map(rule => <li key={rule}>{rule}</li>)}</ul>
-                  <ScoreDetails pModel={r.pModel} score={r.score} rank={r.rank} calibrated={!!data?.model.calibrated} ctx={r.ctx} />
+                  <ScoreDetails pModel={r.pModel} score={r.score} rank={r.rank} fitted={!!data?.model.fitted} ctx={r.ctx} />
                 </details>
               </article>
             );

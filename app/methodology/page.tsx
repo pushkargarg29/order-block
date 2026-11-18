@@ -34,7 +34,7 @@ export default function Page() {
           liquidity sweep, higher-timeframe alignment, RSI and block width. An L2-regularized logistic regression is fitted to predict whether
           <b> price reaches +1R before the stop</b>. Walk-forward validation trains on the oldest 70% of trades and evaluates on the newest 30%, using the area under the ROC curve (AUC), Brier score and a calibration table.</p>
         <p>The model is fitted offline across the active NSE F&amp;O universe and refreshed periodically.
-          Until calibration is available, the site shows <b>“Uncalibrated model”</b> and uses conservative prior weights. Each chart page also provides a <b>Run backtest</b> option for that stock.</p>
+          Until model fitting is run, the site shows <b>“Prior model · not fitted”</b> and uses hand-set prior weights. These outputs are not calibrated probabilities. Each chart page also provides a <b>Run backtest</b> option for that stock.</p>
 
         <h2>4. Module 2 — Futures open-interest build-up</h2>
         <div className="prose-table-wrap">
@@ -64,7 +64,7 @@ export default function Page() {
           A defending wall inside the order block (±0.5 ATR) adds +0.20; an opposing wall before +1R subtracts 0.25. These walls are also considered as trade-plan targets and displayed on the chart.</p>
 
         <h2>8. Final score and ranking</h2>
-        <p><b>Score</b> = 100 × σ( logit(model probability) + Σ module adjustments ). With a fitted model, the base probability is calibrated on historical data; the module adjustments are fixed,
+        <p><b>Score</b> = 100 × σ( logit(model output) + Σ module adjustments ). A fitted logistic model estimates the base outcome probability; out-of-sample AUC, Brier score and reliability are reported, but fitting alone does not guarantee probability calibration. The module adjustments are fixed,
           documented heuristics and are <b>not yet calibrated</b> (point-in-time open-interest and options-chain history are unavailable for a fair backtest). <b>Rank</b> = score × (0.55 + 0.45 × proximity to the block), prioritizing setups closer to entry.</p>
 
         <h2>9. Trade plan (entry, stop loss and TP1–TP3)</h2>

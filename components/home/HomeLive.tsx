@@ -22,7 +22,7 @@ export function LivePulse() {
   return (
     <>
       {error && data && <div className="notice err pulse-error">⚠ {error} The most recent available scan is displayed.</div>}
-      <div className="pulse-status"><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} sampleLabel="Quotes sampled" /></div>
+      <div className="pulse-status"><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /></div>
       <div className="card glass pulse" aria-live="polite">
         {cell('NIFTY 50', data ? <span className="mono">{f2(r?.nifty.ltp)}</span> : '—', r ? chg(r.nifty.chgPct) : null)}
         {cell('BANK NIFTY', data ? <span className="mono">{f2(r?.bank.ltp)}</span> : '—', r ? chg(r.bank.chgPct) : null)}
@@ -31,7 +31,7 @@ export function LivePulse() {
         {cell('Bullish', data ? <span className="mono bull">{counts.bull}</span> : '—', <span className="dim">qualifying setups</span>)}
         {cell('Bearish', data ? <span className="mono bear">{counts.bear}</span> : '—', <span className="dim">qualifying setups</span>)}
         {cell('Range-bound', data ? <span className="mono muted">{counts.chop}</span> : '—', <span className="dim">not included in bullish or bearish totals</span>)}
-        {cell('Updated', data ? <span className="mono">{fmtIST(data.at)}</span> : '—', data ? <span className={data.model.calibrated ? 'bull' : 'dim'}>{data.model.calibrated ? 'model calibrated' : 'model uncalibrated'}</span> : null)}
+        {cell('Updated', data ? <span className="mono">{fmtIST(data.at)}</span> : '—', data ? <span className={data.model.fitted ? 'bull' : 'dim'}>{data.model.fitted ? 'model fitted' : 'prior model · not fitted'}</span> : null)}
       </div>
     </>
   );

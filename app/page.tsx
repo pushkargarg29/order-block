@@ -13,7 +13,7 @@ const Icon = ({ d }: { d: string }) => (
 
 const products = [
   { title: 'Liquidity Board', href: '/board', items: ['Top-ranked bullish and bearish setups, updated in real time', 'Entry, stop loss and targets for each order block', 'Range-bound stocks and securities under F&O ban are excluded'] },
-  { title: 'Order Block Charts', href: '/chart/SBIN', items: ['Order blocks, fair value gaps and liquidity sweeps', 'Options open-interest walls, max pain and support/resistance levels', '2D and interactive 3D charts with five timeframes of context'] },
+  { title: 'Order Block Charts', href: '/chart', items: ['Order blocks, fair value gaps and liquidity sweeps', 'Options open-interest walls, max pain and support/resistance levels', '2D and interactive 3D charts with five timeframes of context'] },
   { title: 'Trade Plans', href: '/plans', items: ['Entry, stop loss and TP1–TP3 for every valid setup', 'Exit rules for partial profit-taking and trailing stops', 'Filter by direction, score or entry status; export to CSV'] },
   { title: 'Market X-Ray', href: '/xray', items: ['Every active NSE stock-futures symbol in one sortable table', 'Open-interest build-up, higher-timeframe trend and index regime', 'Filter, sort and export data to CSV'] }
 ];
@@ -21,7 +21,7 @@ const products = [
 const pipeline = [
   ['Scan', 'Every NSE stock with an active futures contract is analyzed using recent candles, price quotes and futures open interest.'],
   ['Detect', 'Market structure (BOS / CHoCH), order blocks, fair value gaps, liquidity pools and liquidity sweeps, without look-ahead bias.'],
-  ['Score', 'A model trained with walk-forward validation estimates the probability that the nearest order block holds long enough to reach +1R.'],
+  ['Score', 'A walk-forward logistic model can estimate the chance that the nearest order block holds to +1R. Until fitted, Stoclio uses prior weights that are not calibrated probabilities.'],
   ['Confirm', 'Futures open-interest build-up, higher-timeframe trend, NIFTY / BANK NIFTY market regime, India VIX and options open-interest walls adjust the score.'],
   ['Plan & rank', 'Each valid setup receives an entry, stop loss and TP1–TP3. Setups with the highest scores and greatest proximity to entry rank first.']
 ];
@@ -38,7 +38,7 @@ const faq = [
   ['Which stocks does Stoclio cover?', 'NSE equities with an active stock-futures contract. The list refreshes automatically from the exchange instrument list to include additions and remove expired or inactive contracts.'],
   ['How frequently is market data updated?', 'During market hours (09:15–15:30 IST), price quotes refresh every five seconds and the full scan is rebuilt approximately once a minute. Outside market hours, the most recent session is displayed.'],
   ['How are entry, stop loss and TP1–TP3 set?', 'Entry is set at the order-block edge, with the stop 0.2 ATR beyond the block. TP1, TP2 and TP3 are set at a minimum of 1R, 2R and 3R, respectively, and may align with nearby liquidity, swing levels or options open-interest walls. The plan allocates 50% at TP1, 30% at TP2 and 20% at TP3, moving the stop to entry after TP1. Plans are not shown for range-bound stocks.'],
-  ['What does the score mean?', 'The score estimates the probability that the nearest order block holds long enough for price to move one risk unit (1R) in your favor. It is adjusted for open interest, higher-timeframe alignment, the index regime and options open-interest walls. If the badge says “Uncalibrated model,” the score uses prior weights rather than fitted probabilities.'],
+  ['What does the score mean?', 'The score ranks setups using the model output, market context and distance to the order block. Prior weights are used until a model is fitted, and neither prior nor fitted outputs guarantee calibrated probabilities or future performance.'],
   ['Which timeframes are supported?', '5-minute, 15-minute, 1-hour and daily. Each timeframe is evaluated against higher timeframes before setups are ranked.'],
   ['Do I need an account?', 'No. Stoclio is free to use and does not require an account or login. It does not use tracking cookies.'],
   ['Does Stoclio provide investment advice?', 'No. Stoclio is an analytics platform, not a SEBI-registered investment adviser. Its levels and scores are algorithmic and may be inaccurate. Trading derivatives involves a substantial risk of loss.']

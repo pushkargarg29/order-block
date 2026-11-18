@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = { themeColor: '#040914', width: 'device-width', initialScale: 1 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  headers().get('x-nonce'); // forces dynamic rendering so every response carries the per-request CSP nonce
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await headers();
   return (
     <html lang="en">
       <body>

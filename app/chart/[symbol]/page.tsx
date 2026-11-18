@@ -4,13 +4,21 @@ import ChartClient from './ChartClient';
 import { isTimeframe } from '@/lib/types';
 import { initialChart } from '@/lib/snapshot';
 
-export function generateMetadata({ params }: { params: { symbol: string } }): Metadata {
-  return { title: `${decodeURIComponent(params.symbol).toUpperCase().slice(0, 20)} Order Block Chart` };
+type PageProps = {
+  params: Promise<{ symbol: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { symbol } = await params;
+  return { title: `${decodeURIComponent(symbol).toUpperCase().slice(0, 20)} Order Block Chart` };
 }
-export default async function Page({ params, searchParams }: { params: { symbol: string }; searchParams: { tf?: string } }) {
-  const sym = decodeURIComponent(params.symbol).toUpperCase();
+export default async function Page({ params, searchParams }: PageProps) {
+  const [{ symbol }, query] = await Promise.all([params, searchParams]);
+  const sym = decodeURIComponent(symbol).toUpperCase();
   if (!/^[A-Z0-9&\-]{1,20}$/.test(sym)) notFound();
-  const tf = isTimeframe(searchParams.tf) ? searchParams.tf : '15m';
+  const requestedTf = Array.isArray(query.tf) ? query.tf[0] : query.tf;
+  const tf = isTimeframe(requestedTf) ? requestedTf : '15m';
   const initial = await initialChart(sym, tf);
-  return <ChartClient symbol={sym} initialTf={tf} initial={initial} />;
+  return <ChartClient key={sym} symbol={sym} initialTf={tf} initial={initial} />;
 }

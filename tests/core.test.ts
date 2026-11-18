@@ -3,10 +3,25 @@ import test from 'node:test';
 import { resample, ema } from '../lib/indicators';
 import { classifyOi } from '../lib/context';
 import { buildPlan, buildSeries, detect } from '../lib/smc';
+import { hasMarketSessionStartedToday } from '../lib/time';
+import { patchLast } from '../lib/upstox';
 import type { Candle, Zone } from '../lib/types';
 
 const candle = (i: number, o: number, h: number, l: number, c: number, v = 100): Candle => ({
   t: i * 60_000, o, h, l, c, v
+});
+
+test('intraday session data is only requested after the NSE session starts on weekdays', () => {
+  assert.equal(hasMarketSessionStartedToday(new Date('2026-11-16T03:44:00.000Z')), false);
+  assert.equal(hasMarketSessionStartedToday(new Date('2026-11-16T03:45:00.000Z')), true);
+  assert.equal(hasMarketSessionStartedToday(new Date('2026-11-15T04:30:00.000Z')), false);
+});
+
+test('daily quote patches do not create a candle before the session starts', () => {
+  const candles = [candle(1, 90, 105, 88, 100)];
+  const beforeOpen = Date.parse('2026-11-16T03:44:00.000Z');
+  const patched = patchLast(candles, 101, '1d', { o: 99, h: 101, l: 98, v: 10 }, beforeOpen);
+  assert.deepEqual(patched, candles);
 });
 
 test('EMA seeds from the first full window and then updates', () => {

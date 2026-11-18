@@ -15,3 +15,9 @@ test('AUC returns 0.5 when either class is absent', () => {
   assert.equal(auc([0.1, 0.2], [0, 0]), 0.5);
   assert.equal(auc([0.1, 0.2], [1, 1]), 0.5);
 });
+
+test('AUC returns 0.5 for malformed input', () => {
+  assert.equal(auc([0.1], [0, 1]), 0.5);
+  assert.equal(auc([Number.NaN], [1]), 0.5);
+  assert.equal(auc([0.1], [2]), 0.5);
+});

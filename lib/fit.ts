@@ -2,7 +2,7 @@
 import { sigmoid, mean } from './indicators';
 import type { FittedModel } from './model';
 
-export function fitLogistic(X: number[][], y: number[], opts: { l2?: number; iters?: number; lr?: number } = {}): Omit<FittedModel, 'calibrated' | 'trainedAt' | 'samples'> {
+export function fitLogistic(X: number[][], y: number[], opts: { l2?: number; iters?: number; lr?: number } = {}): Omit<FittedModel, 'fitted' | 'trainedAt' | 'samples'> {
   const n = X.length, p = X[0]?.length ?? 0;
   const l2 = opts.l2 ?? 0.01, iters = opts.iters ?? 3000, lr = opts.lr ?? 0.1;
   const means = Array.from({ length: p }, (_, j) => mean(X.map(r => r[j])));
@@ -38,6 +38,7 @@ export function predictWith(m: { means: number[]; stds: number[]; w: number[]; b
 }
 
 export function auc(p: number[], y: number[]): number {
+  if (p.length !== y.length || p.length === 0 || p.some(value => !Number.isFinite(value)) || y.some(value => value !== 0 && value !== 1)) return 0.5;
   const idx = p.map((v, i) => i).sort((a, b) => p[a] - p[b]);
   let sumPos = 0, pos = 0;
   for (let start = 0; start < idx.length;) {

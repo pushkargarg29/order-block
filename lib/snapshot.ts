@@ -16,8 +16,7 @@ import { modelInfo } from './model';
 const sleep = (ms: number) => new Promise<undefined>(r => setTimeout(() => r(undefined), ms));
 
 async function viaCache<T>(key: string[], revalidate: number, fn: () => Promise<T>): Promise<T> {
-  try { return await unstable_cache(fn, ['stoclio-snap-v8', ...key], { revalidate })(); }
-  catch { return fn(); } // data cache unavailable (local scripts)
+  return unstable_cache(fn, ['stoclio-snap-v8', ...key], { revalidate })();
 }
 
 /** Resolve within `waitMs` or return null; unfinished work keeps running and lands in the cache. */

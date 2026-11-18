@@ -1,5 +1,5 @@
 /**
- * Institutional context modules layered on top of the fitted model probability.
+ * Institutional context modules layered on top of the model output.
  * Each module contributes a log-odds adjustment (documented on /methodology). Final score = σ(logit(p) + Σ adjustments).
  */
 import type { Adjustment, Candle, Context, HtfSummary, OiBuildup, OiInfo, OptionWalls, RegimeInfo, Side, StockRegime, Timeframe, Zone, Bias, Analysis } from './types';

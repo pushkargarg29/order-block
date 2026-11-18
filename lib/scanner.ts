@@ -8,12 +8,17 @@ import { modelInfo } from './model';
 import { sweepCache } from './cache';
 import { waitUntil } from '@vercel/functions';
 import { isMarketOpen } from './time';
+import { BudgetError } from './ratelimit';
 
-async function pool<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R>): Promise<(R | null)[]> {
+async function pool<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R>, onError: (item: T, error: unknown) => void): Promise<(R | null)[]> {
   const out: (R | null)[] = new Array(items.length).fill(null);
   let idx = 0;
   await Promise.all(Array.from({ length: limit }, async () => {
-    while (idx < items.length) { const i = idx++; try { out[i] = await fn(items[i]); } catch { out[i] = null; } }
+    while (idx < items.length) {
+      const i = idx++;
+      try { out[i] = await fn(items[i]); }
+      catch (error) { onError(items[i], error); out[i] = null; }
+    }
   }));
   return out;
 }
@@ -22,23 +27,46 @@ const OI_TOP = 60, WALL_TOP = 25;
 
 async function run(tf: Timeframe): Promise<ScanResult> {
   const uni = await getFnoUniverse();
-  const [quotes, regime] = await Promise.all([
-    getQuotes(uni.map(u => u.key)).catch(() => new Map<string, Quote>()),
-    getRegime(tf).catch(() => null)
-  ]);
+  const [quotesResult, regimeResult] = await Promise.allSettled([getQuotes(uni.map(u => u.key)), getRegime(tf)]);
+  const quotes = quotesResult.status === 'fulfilled' ? quotesResult.value : new Map<string, Quote>();
+  const regime = regimeResult.status === 'fulfilled' ? regimeResult.value : null;
+  if (quotesResult.status === 'rejected') console.error('[stoclio] scan quote request failed', { tf, error: quotesResult.reason });
+  if (regimeResult.status === 'rejected') console.error('[stoclio] scan regime request failed', { tf, error: regimeResult.reason });
   const quoteAt = Array.from(quotes.values()).reduce<number | null>((oldest, q) => oldest == null ? q.receivedAt : Math.min(oldest, q.receivedAt), null);
   const quoteCoverage = uni.length ? quotes.size / uni.length : 0;
-  const s1 = (await pool(uni, 8, u => stage1(u, tf, quotes.get(u.key)))).filter((x): x is Stage1 => !!x);
+  const symbolFailures: string[] = [];
+  const sampleErrors: unknown[] = [];
+  const s1 = (await pool(uni, 8, u => stage1(u, tf, quotes.get(u.key)), (u, error) =>
+    {
+      symbolFailures.push(u.symbol);
+      if (sampleErrors.length < 3) sampleErrors.push(error);
+    })).filter((x): x is Stage1 => !!x);
+  if (symbolFailures.length) {
+    console.error('[stoclio] scan symbol failures', { tf, failed: symbolFailures.length, total: uni.length, symbols: symbolFailures.slice(0, 5), sampleErrors });
+  }
+  if (!s1.length) {
+    const budgetError = sampleErrors.find(error => error instanceof BudgetError);
+    if (budgetError) throw budgetError;
+    throw new Error(`Scan produced no usable symbols for ${tf}`);
+  }
 
   // OI + option walls only for the strongest candidates (keeps within Upstox rate limits)
   const cands = s1.filter(s => !s.a.choppy && s.a.activeZone).sort((x, y) => y.a.rank - x.a.rank);
   const oiSet = cands.slice(0, OI_TOP), wallSet = cands.slice(0, WALL_TOP);
-  const futQ = await getQuotes(oiSet.map(s => s.inst.futKey).filter((k): k is string => !!k)).catch(() => new Map<string, Quote>());
+  const futQ = await getQuotes(oiSet.map(s => s.inst.futKey).filter((k): k is string => !!k)).catch(error => {
+    console.error('[stoclio] scan futures quote request failed', { tf, error });
+    return new Map<string, Quote>();
+  });
   const oiMap = new Map<string, OiInfo | null>(), wallMap = new Map<string, OptionWalls | null>();
+  const oiFailures: string[] = [], wallFailures: string[] = [];
   await Promise.all([
-    pool(oiSet, 6, async s => { oiMap.set(s.inst.symbol, await oiFor(s.inst, s.inst.futKey ? futQ.get(s.inst.futKey) : undefined).catch(() => null)); }),
-    pool(wallSet, 4, async s => { wallMap.set(s.inst.symbol, await getOptionWalls(s.inst.key).catch(() => null)); })
+    pool(oiSet, 6, async s => { oiMap.set(s.inst.symbol, await oiFor(s.inst, s.inst.futKey ? futQ.get(s.inst.futKey) : undefined)); },
+      s => { oiFailures.push(s.inst.symbol); }),
+    pool(wallSet, 4, async s => { wallMap.set(s.inst.symbol, await getOptionWalls(s.inst.key)); },
+      s => { wallFailures.push(s.inst.symbol); })
   ]);
+  if (oiFailures.length) console.error('[stoclio] scan open-interest enrichment failures', { tf, count: oiFailures.length, symbols: oiFailures.slice(0, 5) });
+  if (wallFailures.length) console.error('[stoclio] scan option-chain enrichment failures', { tf, count: wallFailures.length, symbols: wallFailures.slice(0, 5) });
 
   const rows: ScanRow[] = [];
   for (const s of s1) {
@@ -57,17 +85,28 @@ async function run(tf: Timeframe): Promise<ScanResult> {
   rows.sort((x, y) => y.rank - x.rank);
   sweepCache();
   const mi = modelInfo(tf);
-  return { tf, at: Date.now(), quoteAt, quoteCoverage, total: uni.length, scanned: rows.length, failed: uni.length - rows.length, rows,
-    regime: regime ? publicRegime(regime) : null, model: { calibrated: mi.calibrated, trainedAt: mi.trainedAt, samples: mi.samples } };
+  return { tf, at: Date.now(), quoteAt, quoteCoverage, scanCoverage: rows.length / uni.length, total: uni.length, scanned: rows.length, failed: uni.length - rows.length, rows,
+    regime: regime ? publicRegime(regime) : null, model: { fitted: mi.fitted, trainedAt: mi.trainedAt, samples: mi.samples } };
 }
 
 const lastScan = new Map<Timeframe, ScanResult>();
 const running = new Map<Timeframe, Promise<ScanResult>>();
+const failedUntil = new Map<Timeframe, { at: number; error: unknown }>();
 
 function refresh(tf: Timeframe): Promise<ScanResult> {
   let p = running.get(tf);
   if (!p) {
-    p = run(tf).then(r => { lastScan.set(tf, r); return r; }).finally(() => running.delete(tf));
+    const failure = failedUntil.get(tf);
+    if (failure && Date.now() < failure.at) return Promise.reject(failure.error);
+    p = run(tf).then(r => {
+      lastScan.set(tf, r);
+      failedUntil.delete(tf);
+      return r;
+    }).catch(error => {
+      const retryAfter = error instanceof BudgetError ? error.retryAfterMs : 30000;
+      failedUntil.set(tf, { at: Date.now() + Math.max(5000, retryAfter), error });
+      throw error;
+    }).finally(() => running.delete(tf));
     running.set(tf, p);
   }
   return p;

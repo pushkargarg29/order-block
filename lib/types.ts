@@ -47,7 +47,7 @@ export type Flags = { ban: boolean; earnings: string | null };
 export type Analysis = {
   last: number; atr: number; rsi: number; ema20: number; ema50: number; vwap: number | null;
   er: number; rvol: number; trend: number; biasScore: number; bias: Bias; choppy: boolean;
-  /** model probability (0-1) that the active zone produces a 1R reaction before stop */
+  /** model output (0-1) for the active zone; prior weights are not calibrated probabilities */
   pModel: number | null; score: number; rank: number; proximity: number;
   zones: Zone[]; activeZone: Zone | null; fvgs: FVG[]; liquidity: LiquidityPool[]; sweeps: Sweep[];
   events: StructureEvent[]; support: number | null; resistance: number | null; liquidityLevel: number | null;
@@ -73,8 +73,8 @@ export type ScanRow = {
 };
 export type ScanResult = {
   tf: Timeframe; at: number; total: number; scanned: number; failed: number; rows: ScanRow[];
-  quoteAt?: number | null; quoteCoverage?: number;
-  regime: RegimeInfo | null; model: { calibrated: boolean; trainedAt: string | null; samples: number };
+  quoteAt?: number | null; quoteCoverage?: number; scanCoverage?: number;
+  regime: RegimeInfo | null; model: { fitted: boolean; trainedAt: string | null; samples: number };
 };
 
 export type BtTrade = {

@@ -1,13 +1,19 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { UpstoxError } from './upstox';
-import { BudgetError } from './ratelimit';
+import { BudgetError, consumeRequestLimit, RateLimitUnavailable } from './ratelimit';
+export { verifyBearerSecret } from './cron-auth';
 
-const buckets = new Map<string, { n: number; reset: number }>();
-const WINDOW = 60000;
+/** Shared per-IP request limiting plus same-origin enforcement. */
+export function requestIdentity(req: NextRequest): string {
+  const vercelForwarded = req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim();
+  if (vercelForwarded) return vercelForwarded;
+  const realIp = req.headers.get('x-real-ip')?.trim();
+  if (realIp) return realIp;
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anon';
+}
 
-/** Basic abuse protection: per-IP rate limit + same-origin enforcement. Returns a response if blocked. */
-export function guard(req: NextRequest, LIMIT = 120, scope = 'api'): NextResponse | null {
+export async function guard(req: NextRequest, LIMIT = 120, scope = 'api'): Promise<NextResponse | null> {
   const site = req.headers.get('sec-fetch-site');
   if (site && site !== 'same-origin' && site !== 'none') return json({ error: 'Forbidden' }, 403);
   const origin = req.headers.get('origin');
@@ -15,13 +21,14 @@ export function guard(req: NextRequest, LIMIT = 120, scope = 'api'): NextRespons
     try { if (new URL(origin).host !== req.headers.get('host')) return json({ error: 'Forbidden' }, 403); }
     catch { return json({ error: 'Forbidden' }, 403); }
   }
-  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || req.headers.get('x-real-ip') || 'anon';
-  const now = Date.now();
-  const bk = `${scope}:${ip}`;
-  const b = buckets.get(bk);
-  if (!b || b.reset < now) buckets.set(bk, { n: 1, reset: now + WINDOW });
-  else if (++b.n > LIMIT) return json({ error: 'Too many requests' }, 429, { 'Retry-After': String(Math.ceil((b.reset - now) / 1000)) });
-  if (buckets.size > 5000) buckets.forEach((v, key) => { if (v.reset < now) buckets.delete(key); });
+  const ip = requestIdentity(req);
+  try {
+    const result = await consumeRequestLimit(scope, ip, LIMIT);
+    if (!result.allowed) return json({ error: 'Too many requests' }, 429, { 'Retry-After': String(Math.max(1, Math.ceil(result.retryAfterMs / 1000))) });
+  } catch (error) {
+    console.error('[stoclio] shared request limiter failed', error);
+    return json({ error: 'Request protection is temporarily unavailable' }, 503, { 'Retry-After': '30' });
+  }
   return null;
 }
 
@@ -44,7 +51,11 @@ export const SYMBOL_RE = /^[A-Z0-9&\-]{1,20}$/;
 /** Map any server error to a safe, brand-neutral message. Internal details are logged, never sent to the browser. */
 export function errorResponse(e: unknown, fallback = 'Live market data is temporarily unavailable. Please retry shortly.') {
   if (e instanceof UpstoxError) return json({ error: e.message }, e.status);
-  if (e instanceof BudgetError) return json({ error: e.message }, 503, { 'Retry-After': '60' });
+  if (e instanceof BudgetError) return json({ error: e.message }, 503, { 'Retry-After': String(Math.max(1, Math.ceil(e.retryAfterMs / 1000))) });
+  if (e instanceof RateLimitUnavailable) {
+    console.error('[stoclio] shared rate limiter unavailable');
+    return json({ error: e.message }, 503, { 'Retry-After': '30' });
+  }
   console.error('[stoclio]', e);
   return json({ error: fallback }, 502);
 }

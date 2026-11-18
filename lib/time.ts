@@ -2,6 +2,11 @@ const IST = 19800000;
 export function istDate(d = new Date()): string { return new Date(d.getTime() + IST).toISOString().slice(0, 10); }
 export function istDateMinus(days: number, from = Date.now()): string { return istDate(new Date(from - days * 86400000)); }
 export const istDayNum = (t: number) => Math.floor((t + IST) / 86400000);
+export function hasMarketSessionStartedToday(d = new Date()): boolean {
+  const x = new Date(d.getTime() + IST);
+  const day = x.getUTCDay();
+  return day > 0 && day < 6 && x.getUTCHours() * 60 + x.getUTCMinutes() >= 555;
+}
 export function isMarketOpen(d = new Date()): boolean {
   const x = new Date(d.getTime() + IST);
   const day = x.getUTCDay();

@@ -3,7 +3,7 @@
  *   npm run backtest -- --tf 15m            (default 15m)
  *   npm run backtest -- --tf all --limit 120 --days 365
  * Reads UPSTOX_ACCESS_TOKEN from .env.local. Writes lib/model-weights.json and reports/backtest-<tf>.md.
- * Redeploy afterwards so the live site uses the fitted, calibrated model.
+ * Redeploy afterwards so the live site uses the fitted model; review out-of-sample metrics first.
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
@@ -35,20 +35,31 @@ async function runTf(tf: Timeframe) {
   const uni = (await getFnoUniverse()).slice(0, limit);
   console.log(`\n[${tf}] ${uni.length} stocks · ${h.days} days of ${h.interval} ${h.unit}`);
   const all: BtTrade[] = [];
-  let done = 0;
+  let done = 0, succeeded = 0;
   for (const u of uni) {
     try {
       const c = await getHistory(u.key, h.unit, h.interval, h.days);
       all.push(...runBacktest(c, tf, { costPct }));
+      succeeded++;
     } catch (e) { console.warn(`  ${u.symbol}: ${(e as Error).message}`); }
     if (++done % 20 === 0) console.log(`  ${done}/${uni.length} stocks · ${all.length} trades`);
   }
+  const coverage = uni.length ? succeeded / uni.length : 0;
+  if (coverage < 0.8) { console.warn(`  only ${pct(coverage)} of symbols loaded successfully — skipped fitting`); return null; }
   if (all.length < 300) { console.warn(`  only ${all.length} trades — not enough to fit; skipped`); return null; }
   all.sort((a, b) => a.t - b.t);
   const X = all.map(t => t.features), y: number[] = all.map(t => (t.hit1R ? 1 : 0));
 
   // walk-forward: train on the first 70% of time, evaluate on the most recent 30%
   const cut = Math.floor(all.length * 0.7);
+  const trainPositives = y.slice(0, cut).filter(label => label === 1).length;
+  const trainNegatives = cut - trainPositives;
+  const testPositives = y.slice(cut).filter(label => label === 1).length;
+  const testNegatives = y.length - cut - testPositives;
+  if (Math.min(trainPositives, trainNegatives, testPositives, testNegatives) < 10) {
+    console.warn('  at least one walk-forward split has fewer than 10 examples of an outcome class — skipped fitting');
+    return null;
+  }
   const m1 = fitLogistic(X.slice(0, cut), y.slice(0, cut));
   const pT = X.slice(cut).map(x => predictWith(m1, x)), yT = y.slice(cut);
   const oos = { auc: auc(pT, yT), brier: brier(pT, yT), baseRate: yT.reduce((a, b) => a + b, 0) / yT.length, samples: yT.length };
@@ -61,7 +72,7 @@ async function runTf(tf: Timeframe) {
   const hi = summarize(all.filter(t => t.p >= 0.6), costPct);
 
   const model = {
-    calibrated: true, trainedAt: new Date().toISOString(), samples: all.length,
+    fitted: true, trainedAt: new Date().toISOString(), samples: all.length,
     means: m.means, stds: m.stds, w: m.w, b: m.b, oos,
     stats: { hitRate1R: sAll.hitRate1R, expectancy2R: sAll.expectancy2R, signalHitRate1R: sSig.hitRate1R, signalExpectancy2R: sSig.expectancy2R, highScoreHitRate1R: hi.hitRate1R, highScoreTrades: hi.trades }
   };
@@ -90,8 +101,16 @@ async function runTf(tf: Timeframe) {
   const path = join(root, 'lib', 'model-weights.json');
   const file = JSON.parse(readFileSync(path, 'utf8'));
   file.models = file.models ?? {};
-  for (const tf of tfs) { const m = await runTf(tf); if (m) file.models[tf] = m; }
-  file.note = 'Fitted by scripts/backtest.ts. Re-run periodically (e.g. monthly) and redeploy.';
-  writeFileSync(path, JSON.stringify(file, null, 2));
-  console.log(`\nSaved ${path}. Redeploy to use the calibrated model.`);
+  let fittedAny = false;
+  for (const tf of tfs) {
+    const m = await runTf(tf);
+    if (m) { file.models[tf] = m; fittedAny = true; }
+  }
+  if (fittedAny) {
+    file.note = 'Fitted by scripts/backtest.ts. Re-run periodically (e.g. monthly) and redeploy.';
+    writeFileSync(path, JSON.stringify(file, null, 2));
+    console.log(`\nSaved ${path}. Review out-of-sample metrics before deploying fitted weights.`);
+  } else {
+    console.warn('\nNo models passed the data-quality checks; existing weights were not changed.');
+  }
 })().catch(e => { console.error(e); process.exit(1); });

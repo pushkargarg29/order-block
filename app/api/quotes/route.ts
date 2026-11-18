@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const blocked = guard(req); if (blocked) return blocked;
+  const blocked = await guard(req); if (blocked) return blocked;
   const syms = (req.nextUrl.searchParams.get('symbols') ?? '').toUpperCase().split(',').filter(Boolean);
   if (!syms.length || syms.length > 100 || !syms.every(s => SYMBOL_RE.test(s))) return json({ error: 'Invalid symbols' }, 400);
   try {

@@ -35,9 +35,8 @@ async function load(): Promise<Instrument[]> {
 }
 
 /** All NSE equities with active stock futures (the F&O universe). Cached 6h. */
-const loadShared = async () => {
-  try { return await unstable_cache(load, ['stoclio-universe-v8'], { revalidate: 21600 })(); }
-  catch { return load(); }
-};
+const loadShared = () => process.env.NEXT_RUNTIME === 'nodejs'
+  ? unstable_cache(load, ['stoclio-universe-v8'], { revalidate: 21600 })()
+  : load();
 export const getFnoUniverse = () => memo('universe', 6 * 3600000, loadShared);
 export async function findSymbol(symbol: string) { return (await getFnoUniverse()).find(i => i.symbol === symbol.toUpperCase()); }

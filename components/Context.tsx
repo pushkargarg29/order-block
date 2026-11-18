@@ -6,10 +6,10 @@ const trendLabel = (t: number) => (t > 0.2 ? 'Up' : t < -0.2 ? 'Down' : 'Flat');
 const trendCls = (t: number) => (t > 0.2 ? 'bull' : t < -0.2 ? 'bear' : 'muted');
 const biasCls = (b: Bias) => (b === 'bullish' ? 'bullp' : b === 'bearish' ? 'bearp' : 'neutp');
 
-export function ModelBadge({ calibrated, trainedAt }: { calibrated: boolean; trainedAt: string | null }) {
-  return calibrated
-    ? <span className="pill bullp" title={`Model fitted on ${trainedAt ?? 'historical data'}`}>Model calibrated</span>
-    : <span className="pill neutp" title="Scores use prior weights until the model is calibrated on historical data">Uncalibrated model</span>;
+export function ModelBadge({ fitted, trainedAt }: { fitted: boolean; trainedAt: string | null }) {
+  return fitted
+    ? <span className="pill bullp" title={`Model weights fitted on ${trainedAt ?? 'historical data'}; probability calibration is not guaranteed`}>Model fitted</span>
+    : <span className="pill neutp" title="Scores use prior weights; probability calibration is not established">Prior model · not fitted</span>;
 }
 
 export function RegimeBar({ r }: { r: RegimeInfo | null }) {
@@ -39,20 +39,20 @@ export function CtxChips({ c, max = 4 }: { c: Context; max?: number }) {
   return <span className="chips">{chips.slice(0, max).map(x => <span key={x.t} className={`chip ${x.cls}`} title={x.title}>{x.t}</span>)}</span>;
 }
 
-export function ScoreBreakdown({ p, score, ctx }: { p: number | null; score: number; ctx: Context | null }) {
+export function ScoreBreakdown({ p, score, ctx, fitted }: { p: number | null; score: number; ctx: Context | null; fitted: boolean }) {
   if (p == null) return <p className="muted">No active order block aligns with the current trend, so no score is available.</p>;
   return (
     <div className="breakdown">
-      <p className="score-note">The model probability is adjusted by the context factors below to produce the final score.</p>
-      <div><span>Model-estimated probability of reaching +1R before the stop loss</span><b className="mono">{(p * 100).toFixed(1)}%</b></div>
+      <p className="score-note">The model output is adjusted by context factors to produce the final score. {fitted ? 'Probability calibration is not guaranteed.' : 'Prior weights are not calibrated probabilities.'}</p>
+      <div><span>{fitted ? 'Estimated +1R outcome probability' : 'Prior-model output (not a probability)'}</span><b className="mono">{fitted ? `${(p * 100).toFixed(1)}%` : `${(p * 100).toFixed(1)}/100`}</b></div>
       {ctx?.adjustments.map(a => <div key={a.key + a.label}><span>{a.label}</span><b className={`mono ${a.delta >= 0 ? 'bull' : 'bear'}`}>{a.delta >= 0 ? '+' : ''}{a.delta.toFixed(2)} log-odds</b></div>)}
       <div className="total"><span>Final score</span><b className="mono grad">{score}</b></div>
     </div>
   );
 }
 
-export function ScoreDetails({ pModel, score, rank, calibrated, ctx }: {
-  pModel: number | null; score: number; rank: number; calibrated: boolean; ctx: Context;
+export function ScoreDetails({ pModel, score, rank, fitted, ctx }: {
+  pModel: number | null; score: number; rank: number; fitted: boolean; ctx: Context;
 }) {
   return (
     <details className="score-details">
@@ -61,7 +61,9 @@ export function ScoreDetails({ pModel, score, rank, calibrated, ctx }: {
         <p>No active order block is available. The score falls back to directional bias, and context adjustments are not applied.</p>
       ) : (
         <>
-          <p>Base model probability: <b>{(pModel * 100).toFixed(1)}%</b> of reaching +1R before the stop loss. {calibrated ? 'The model is calibrated.' : 'The model is uncalibrated and uses prior weights.'}</p>
+          <p>{fitted
+            ? <>Fitted model estimate: <b>{(pModel * 100).toFixed(1)}%</b> for reaching +1R before the stop loss. Probability calibration is not guaranteed.</>
+            : <>Prior-model output: <b>{(pModel * 100).toFixed(1)}/100</b>. This is not a calibrated probability.</>}</p>
           <p>Context adjustments (log-odds):</p>
           {ctx.adjustments.length ? (
             <ul>{ctx.adjustments.map(a => <li key={a.key + a.label}>{a.label}: <b className={a.delta >= 0 ? 'bull' : 'bear'}>{a.delta >= 0 ? '+' : ''}{a.delta.toFixed(2)}</b></li>)}</ul>

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
-  const blocked = guard(req); if (blocked) return blocked;
+  const blocked = await guard(req); if (blocked) return blocked;
   const tf = req.nextUrl.searchParams.get('tf') ?? '15m';
   if (!isTimeframe(tf)) return json({ error: 'Invalid timeframe' }, 400);
   try { return cachedJson(await getScan(tf), isMarketOpen() ? 20 : 300, 86400); }
