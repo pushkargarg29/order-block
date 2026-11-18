@@ -1,12 +1,12 @@
 'use client';
-import { FormEvent, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 
-export default function MethodologyPinGate() {
-  const router = useRouter();
+export default function MethodologyPinGate({ children }: { children: ReactNode }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -22,13 +22,15 @@ export default function MethodologyPinGate() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || 'Could not verify the PIN.');
       setPin('');
-      router.refresh();
+      setUnlocked(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not verify the PIN.');
     } finally {
       setBusy(false);
     }
   };
+
+  if (unlocked) return children;
 
   return (
     <main className="container" style={{ maxWidth: 520, padding: '72px 20px' }}>

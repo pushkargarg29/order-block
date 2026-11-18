@@ -1,17 +1,13 @@
 import type { Metadata } from 'next';
-import { cookies } from 'next/headers';
 import MethodologyPinGate from './MethodologyPinGate';
-import { METHODOLOGY_COOKIE, verifyMethodologySession } from '@/lib/methodology-auth';
 export const metadata: Metadata = { title: 'Methodology' };
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const token = (await cookies()).get(METHODOLOGY_COOKIE)?.value;
-  if (!verifyMethodologySession(token)) return <MethodologyPinGate />;
-
   return (
-    <div className="container" style={{ padding: '40px 20px' }}>
+    <MethodologyPinGate>
+      <div className="container" style={{ padding: '40px 20px' }}>
       <div className="prose">
         <h1 style={{ fontSize: 42, letterSpacing: -1, color: 'var(--text)' }}>How <span className="grad">Stoclio</span> scores order blocks</h1>
         <p>Stoclio translates Smart Money Concepts (SMC) into deterministic rules, evaluates them with walk-forward backtesting, fits a probability model,
@@ -91,6 +87,7 @@ export default async function Page() {
         <p>To remain within market-data rate limits, Stoclio caches candle history for the day, refreshes the current session&apos;s 5-minute candles approximately every four minutes,
           updates the forming candle with the latest price on each scan, polls quotes every five seconds through a shared cache, and retrieves open-interest data for the top 60 candidates and options-chain data for the top 25.</p>
       </div>
-    </div>
+      </div>
+    </MethodologyPinGate>
   );
 }
