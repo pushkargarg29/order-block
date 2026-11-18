@@ -1,10 +1,20 @@
 'use client';
-import type { Context, RegimeInfo, Bias } from '@/lib/types';
+import type { Context, RegimeInfo, Bias, ScanResult } from '@/lib/types';
 import { f2, pct } from './fmt';
 
 const trendLabel = (t: number) => (t > 0.2 ? 'Up' : t < -0.2 ? 'Down' : 'Flat');
 const trendCls = (t: number) => (t > 0.2 ? 'bull' : t < -0.2 ? 'bear' : 'muted');
 const biasCls = (b: Bias) => (b === 'bullish' ? 'bullp' : b === 'bearish' ? 'bearp' : 'neutp');
+
+export function EnrichmentCoverage({ enrichment }: { enrichment?: ScanResult['enrichment'] }) {
+  if (!enrichment) return null;
+  const { oi, options } = enrichment;
+  return (
+    <span className="dim" title="Available data / eligible candidates enriched during this scan">
+      Context data: OI {oi.available}/{oi.requested} · options {options.available}/{options.requested}
+    </span>
+  );
+}
 
 export function ModelBadge({ fitted, trainedAt }: { fitted: boolean; trainedAt: string | null }) {
   return fitted

@@ -10,7 +10,7 @@ import LiveBadge from '@/components/LiveBadge';
 import Distribution from '@/components/Distribution';
 import MarketUniverse3D from '@/components/three/MarketUniverse3D';
 import { f2, pct } from '@/components/fmt';
-import { RegimeBar, CtxChips, ModelBadge } from '@/components/Context';
+import { RegimeBar, CtxChips, ModelBadge, EnrichmentCoverage } from '@/components/Context';
 
 function Tile({ r, i, side, live, tf }: { r: ScanRow; i: number; side: 'bull' | 'bear'; live?: { ltp: number; changePct: number }; tf: Timeframe }) {
   const ch = live?.changePct ?? r.changePct;
@@ -55,7 +55,7 @@ export default function BoardClient({ initial = null }: { initial?: ScanResult |
           <h1><span className="grad">Liquidity Board</span></h1>
           <p className="muted" style={{ marginTop: 6 }}>Highest-ranked order-block setups across active NSE F&amp;O stocks, updated in real time.</p>
         </div>
-        <div className="toolbar">{data && <ModelBadge fitted={data.model.fitted} trainedAt={data.model.trainedAt} />}<LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
+        <div className="toolbar">{data && <ModelBadge fitted={data.model.fitted} trainedAt={data.model.trainedAt} />}<EnrichmentCoverage enrichment={data?.enrichment} /><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
       <RegimeBar r={data?.regime ?? null} />
 

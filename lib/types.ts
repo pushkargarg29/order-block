@@ -74,6 +74,7 @@ export type ScanRow = {
 export type ScanResult = {
   tf: Timeframe; at: number; total: number; scanned: number; failed: number; rows: ScanRow[];
   quoteAt?: number | null; quoteCoverage?: number; scanCoverage?: number;
+  enrichment?: { oi: { available: number; requested: number }; options: { available: number; requested: number } };
   regime: RegimeInfo | null; model: { fitted: boolean; trainedAt: string | null; samples: number };
 };
 

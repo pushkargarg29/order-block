@@ -28,9 +28,10 @@ export default function Page() {
 
         <h2>3. Module 1 — Backtest engine &amp; fitted score</h2>
         <p>The backtester replays history bar by bar to avoid <b>look-ahead bias</b>: pivots are used only after confirmation, and a block becomes tradable only two bars after the break.
-          For each block, the <b>first retest</b> is traded: limit entry at the block edge (or the open if price gaps through), stop 0.2 ATR beyond the block,
-          50% exit at 1R, 30% at 2R and 20% at 3R, with the stop moved to breakeven after 1R and to 1R after 2R. Remaining size exits after 40 bars.
-          Estimated costs are <b>0.06% per side</b> (brokerage, securities transaction tax and slippage). If a stop and target occur in the same bar, the stop is assumed to execute first.</p>
+          Invalidated blocks are skipped. Entry uses the first retest while the plan is valid (through 15:15 IST for intraday; within three sessions for daily), at the block edge or the open if price gaps through.
+          The stop is 0.2 ATR beyond the block; a close through the block exits any remaining size. Intraday trades are squared off at 15:15 IST; daily trades exit after 10 sessions if TP1 was not reached.
+          The target ladder exits 50% at 1R, 30% at 2R and 20% at 3R, moving the stop to breakeven after 1R and to 1R after 2R. Estimated costs are <b>0.06% per side</b> (brokerage, securities transaction tax and slippage).
+          If a stop and target occur in the same bar, the stop is assumed to execute first.</p>
         <p>Eleven features are measured on the bar <i>before</i> the touch — aligned bias, efficiency, displacement, impulse volume, FVG, block age, current relative volume,
           liquidity sweep, higher-timeframe alignment, RSI and block width. An L2-regularized logistic regression is fitted to predict whether
           <b> price reaches +1R before the stop</b>. Walk-forward validation trains on the oldest 70% of trades, purges training trades that remain open at the test boundary, and evaluates on the newest 30%, using the area under the ROC curve (AUC), Brier score and a calibration table.</p>
@@ -75,7 +76,7 @@ export default function Page() {
           <li><b>TP1 / TP2 / TP3</b> — set at a minimum of 1R / 2R / 3R. Each target aligns with the nearest unswept liquidity pool, swing high or low, or options open-interest wall within +1.25R of that multiple; otherwise the exact risk multiple is used. Targets are at least 0.5R apart.</li>
           <li><b>Trade management</b> — take profit on 50% of the position at TP1 and move the stop to entry; take profit on 30% at TP2 and trail the stop to TP1; exit the remaining 20% at TP3. Exit early if a candle closes beyond the block; do not enter if the price gaps through the stop.</li>
           <li><b>Plan validity</b> — pending intraday entries expire at 15:15 IST, and open intraday trades are closed by 15:15. Daily entries expire after three sessions and are closed after ten sessions if TP1 has not been reached.</li>
-          <li>The backtester simulates the 50% / 30% / 20% target ladder and trailing stop, but uses a 40-bar time stop. It does not simulate the plan&apos;s 15:15 intraday square-off, 10-session daily timeout, or separate close-based invalidation exit; its historical rates are therefore not an exact replay of displayed plans.</li>
+          <li>The backtester mirrors plan validity, close-based invalidation and exit sizing, but target prices are exact R multiples rather than levels snapped to live structure or options data. Historical rates are therefore not an exact replay of displayed plans; historical OI, options-chain and context adjustments are also unavailable for a fair point-in-time test.</li>
         </ul>
 
         <h2>Data &amp; refresh</h2>

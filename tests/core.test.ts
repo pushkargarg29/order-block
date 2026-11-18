@@ -3,6 +3,7 @@ import test from 'node:test';
 import { resample, ema } from '../lib/indicators';
 import { classifyOi, stockRegime } from '../lib/context';
 import { buildPlan, buildSeries, detect } from '../lib/smc';
+import { isDailyPlanTimeExit, isPlanEntryValid, isZoneAvailableAtTouch } from '../lib/backtest';
 import { hasMarketSessionStartedToday } from '../lib/time';
 import { patchLast } from '../lib/upstox';
 import type { Candle, Zone } from '../lib/types';
@@ -72,6 +73,21 @@ test('stock regime selects the index with the higher return correlation', () => 
   };
 
   assert.equal(stockRegime(candlesFor(stockReturns), regime, 'bull')?.ref, 'BANKNIFTY');
+});
+
+test('backtest entry and exit windows follow the published plan validity', () => {
+  const session = Date.parse('2026-11-18T10:00:00+05:30');
+  const lastValidFiveMinuteBar = Date.parse('2026-11-18T15:10:00+05:30');
+  const expiredFiveMinuteBar = Date.parse('2026-11-18T15:15:00+05:30');
+  assert.equal(isPlanEntryValid('5m', session, lastValidFiveMinuteBar, 0), true);
+  assert.equal(isPlanEntryValid('5m', session, expiredFiveMinuteBar, 0), false);
+  assert.equal(isPlanEntryValid('5m', session, lastValidFiveMinuteBar + 86400000, 1), false);
+  assert.equal(isPlanEntryValid('1d', session, session + 3 * 86400000, 3), true);
+  assert.equal(isPlanEntryValid('1d', session, session + 4 * 86400000, 4), false);
+  assert.equal(isDailyPlanTimeExit(10, false), true);
+  assert.equal(isDailyPlanTimeExit(10, true), false);
+  assert.equal(isZoneAvailableAtTouch(session + 86400000, session), true);
+  assert.equal(isZoneAvailableAtTouch(session, session + 1), false);
 });
 
 test('structure break creates an order block tradable only after its availability delay', () => {

@@ -86,6 +86,10 @@ async function run(tf: Timeframe): Promise<ScanResult> {
   sweepCache();
   const mi = modelInfo(tf);
   return { tf, at: Date.now(), quoteAt, quoteCoverage, scanCoverage: rows.length / uni.length, total: uni.length, scanned: rows.length, failed: uni.length - rows.length, rows,
+    enrichment: {
+      oi: { requested: oiSet.length, available: Array.from(oiMap.values()).filter(Boolean).length },
+      options: { requested: wallSet.length, available: Array.from(wallMap.values()).filter(Boolean).length }
+    },
     regime: regime ? publicRegime(regime) : null, model: { fitted: mi.fitted, trainedAt: mi.trainedAt, samples: mi.samples } };
 }
 
