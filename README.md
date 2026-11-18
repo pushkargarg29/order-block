@@ -4,7 +4,7 @@ Next.js 16 full-stack app. Requires Node.js 20.9 or later. No database, no login
 
 ## What's inside
 - **Liquidity Board** (`/board`) — every active F&O stock scanned; top-20 bullish / bearish ranked by score × proximity. Index/VIX regime bar, OI and HTF chips, ban list excluded.
-- **Order Block Charts** (`/chart`) — search for an active F&O stock, then view order blocks, FVGs, liquidity pools, sweeps, BOS/CHoCH, EMA 20/50, trade plan, **option OI walls & max pain**, score breakdown, OI / HTF / regime / option-chain panels and a **per-stock backtest**.
+- **Order Block Charts** (`/chart`) — search for an active F&O stock, then view order blocks, FVGs, liquidity pools, sweeps, BOS/CHoCH, EMA 20/50, trade plan, **option OI walls & max pain**, score breakdown, OI / HTF / regime / option-chain panels and a **per-stock backtest**. Interactive 2D charts use TradingView Lightweight Charts; the chart displays its required attribution.
 - **Market X-Ray** (`/xray`) — full quant table with OI build-up, HTF alignment, reference index, OI walls, PCR, flags; filters + CSV export.
 - **Methodology** — every rule and weight.
 
