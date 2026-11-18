@@ -58,7 +58,6 @@ function getRedis(): Redis | null {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) {
-    if (process.env.NODE_ENV === 'production') throw new RateLimitUnavailable('Shared rate limiting is not configured.');
     return null;
   }
   redisClient ??= new Redis({ url, token });
@@ -92,15 +91,14 @@ export async function acquire(name: string, maxWaitMs = 45000): Promise<void> {
     if (redis) {
       const key = `stoclio:upstream:${name}`;
       const args = [String(now), `${now}:${randomUUID()}`, String(LIMITS.perSec), String(LIMITS.perMin), String(LIMITS.per30)];
-      let response: [number, number];
       try {
-        response = await redis.eval<string[], [number, number]>(QUOTA_SCRIPT, [key], args);
+        const response = await redis.eval<string[], [number, number]>(QUOTA_SCRIPT, [key], args);
+        const [allowed, retryAfterMs] = response;
+        decision = { allowed: Number(allowed) === 1, retryAfterMs: Number(retryAfterMs) };
       } catch {
-        console.error('[stoclio] shared upstream limiter failed');
-        throw new RateLimitUnavailable();
+        console.error('[stoclio] shared upstream limiter unavailable; using local fallback');
+        decision = localAcquire(name, now);
       }
-      const [allowed, retryAfterMs] = response;
-      decision = { allowed: Number(allowed) === 1, retryAfterMs: Number(retryAfterMs) };
     } else {
       decision = localAcquire(name, now);
     }
@@ -116,8 +114,12 @@ export async function consumeRequestLimit(scope: string, identity: string, limit
   const key = `stoclio:request:${scope}:${hash}`;
   const redis = getRedis();
   if (redis) {
-    const [count, ttl] = await redis.eval<string[], [number, number]>(REQUEST_SCRIPT, [key], [String(windowMs)]);
-    return { allowed: Number(count) <= limit, retryAfterMs: Math.max(0, Number(ttl)) };
+    try {
+      const [count, ttl] = await redis.eval<string[], [number, number]>(REQUEST_SCRIPT, [key], [String(windowMs)]);
+      return { allowed: Number(count) <= limit, retryAfterMs: Math.max(0, Number(ttl)) };
+    } catch {
+      console.error('[stoclio] shared request limiter unavailable; using local fallback');
+    }
   }
   const now = Date.now();
   let bucket = localRequestCounts.get(key);

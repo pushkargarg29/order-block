@@ -11,7 +11,7 @@ test('request limits isolate identities and reject requests after the configured
   assert.equal((await consumeRequestLimit('test', `${identity}-other`, 2)).allowed, true);
 });
 
-test('production fails closed when shared rate limiting is not configured', async () => {
+test('production uses a local limiter fallback when shared rate limiting is not configured', async () => {
   const previous = {
     nodeEnv: process.env.NODE_ENV,
     url: process.env.UPSTASH_REDIS_REST_URL,
@@ -25,7 +25,7 @@ test('production fails closed when shared rate limiting is not configured', asyn
   setEnv('UPSTASH_REDIS_REST_URL', undefined);
   setEnv('UPSTASH_REDIS_REST_TOKEN', undefined);
   try {
-    await assert.rejects(consumeRequestLimit('test', randomUUID(), 1), RateLimitUnavailable);
+    assert.equal((await consumeRequestLimit('test', randomUUID(), 1)).allowed, true);
   } finally {
     setEnv('NODE_ENV', previous.nodeEnv);
     setEnv('UPSTASH_REDIS_REST_URL', previous.url);
