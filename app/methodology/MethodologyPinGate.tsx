@@ -35,8 +35,8 @@ export default function MethodologyPinGate({ children }: { children: ReactNode }
   return (
     <main className="methodology-pin-gate">
       <section className="card glass" style={{ padding: 'var(--card-padding)' }}>
-        <h1>Methodology access</h1>
-        <p className="muted" style={{ margin: '10px 0 20px' }}>Enter the PIN shared by the Stoclio platform owner to view this page.</p>
+        <h1>Methodology</h1>
+        <p className="muted" style={{ margin: '10px 0 20px' }}>Enter the access PIN shared by Stoclio.</p>
         <form onSubmit={submit}>
           <label htmlFor="methodology-pin" className="muted">Access PIN</label>
           <input
@@ -49,11 +49,20 @@ export default function MethodologyPinGate({ children }: { children: ReactNode }
             maxLength={4}
             required
             value={pin}
-            onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
+            onChange={event => {
+              setPin(event.target.value.replace(/\D/g, '').slice(0, 4));
+              setError(null);
+            }}
+            aria-invalid={error ? 'true' : undefined}
             aria-describedby={error ? 'methodology-pin-error' : undefined}
             style={{ display: 'block', width: '100%', margin: '8px 0 14px' }}
           />
-          {error && <p id="methodology-pin-error" className="notice err" role="alert">{error}</p>}
+          {error && (
+            <p id="methodology-pin-error" className="pin-error" role="alert">
+              <span className="pin-error-icon" aria-hidden="true">!</span>
+              <span>{error === 'Incorrect PIN.' ? 'Incorrect PIN. Check the code and try again.' : error}</span>
+            </p>
+          )}
           <button type="submit" className="btn btn-primary" disabled={busy || pin.length !== 4}>
             {busy ? 'Checking…' : 'Unlock methodology'}
           </button>
