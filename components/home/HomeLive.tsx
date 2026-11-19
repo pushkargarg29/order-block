@@ -4,6 +4,7 @@ import { useMemo, type ReactNode } from 'react';
 import type { ScanRow } from '@/lib/types';
 import { useScan, useLiveQuotes } from '../useScan';
 import LiveBadge from '../LiveBadge';
+import { ScanDiagnostics } from '../Context';
 import { f2, pct } from '../fmt';
 import { fmtIST } from '@/lib/time';
 
@@ -22,7 +23,7 @@ export function LivePulse() {
   return (
     <>
       {error && data && <div className="notice err pulse-error">⚠ {error} The most recent available scan is displayed.</div>}
-      <div className="pulse-status"><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /></div>
+      <div className="pulse-status"><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><ScanDiagnostics data={data} /></div>
       <div className="card glass pulse" aria-live="polite">
         {cell('NIFTY 50', data ? <span className="mono">{f2(r?.nifty.ltp)}</span> : '—', r ? chg(r.nifty.chgPct) : null)}
         {cell('BANK NIFTY', data ? <span className="mono">{f2(r?.bank.ltp)}</span> : '—', r ? chg(r.bank.chgPct) : null)}

@@ -6,6 +6,7 @@ Next.js 16 full-stack app. Requires Node.js 20.9 or later. No database, no login
 - **Liquidity Board** (`/board`) — every active F&O stock scanned; top-20 bullish / bearish ranked by score × proximity. Index/VIX regime bar, OI and HTF chips, ban list excluded from ranked lists.
 - **Order Block Charts** (`/chart`) — search for an active F&O stock, then view order blocks, FVGs, liquidity pools, sweeps, BOS/CHoCH, EMA 20/50, trade plan, **option OI walls & max pain**, score breakdown, OI / HTF / regime / option-chain panels and a **per-stock backtest**. Interactive 2D charts use TradingView Lightweight Charts; the chart displays its required attribution.
 - **Market X-Ray** (`/xray`) — full quant table with OI build-up, HTF alignment, reference index, OI walls, PCR, flags; filters + CSV export.
+- **Scan diagnostics** — inspect scan/quote coverage, failed symbols, quote sample time, regime/calendar availability and candidate-level OI/options enrichment on the homepage, Liquidity Board, Trade Plans and Market X-Ray.
 - **Methodology** — every rule and weight.
 
 ## The five institutional modules
@@ -30,12 +31,12 @@ npm run backtest -- --tf 15m              # one timeframe (≈ 7 requests per st
 npm run backtest -- --tf all              # all four timeframes (run at different times — rate limits)
 npm run backtest -- --tf 15m --limit 50   # quick test on 50 stocks
 ```
-When the data-quality checks pass, this writes `lib/model-weights.json` and a report in `reports/backtest-<tf>.md` (out-of-sample AUC, Brier, reliability table, hit-rate, expectancy, profit factor, drawdown). Fitting is skipped unless at least 80% of requested symbols load, there are 300 trades, and both outcomes have at least 10 examples in each walk-forward split; skipped runs leave existing model weights unchanged.
+When the data-quality checks pass, this writes `lib/model-weights.json` and a report in `reports/backtest-<tf>.md` (out-of-sample AUC, Brier, reliability table, and strategy hit-rate, expectancy, profit factor and drawdown). The chronological split keeps all trades with the same entry timestamp in one partition and purges training trades that have not exited before the test period. Full-sample results are labeled descriptive, not validation. Fitting is skipped unless at least 80% of requested symbols have 120 or more valid candles, there are 300 trades, and both outcomes have at least 10 examples in each split; skipped runs leave existing model weights unchanged.
 Review the out-of-sample metrics, then commit the JSON and redeploy; the site badge switches to **Model fitted**. Fitting does not guarantee well-calibrated probabilities. Re-run monthly and compare the reported metrics before deploying new weights.
 
 ## Deploy on Vercel
 1. Push to GitHub → import in Vercel.
-2. Settings → Environment Variables → `UPSTOX_ACCESS_TOKEN`, `CRON_SECRET` (at least 32 characters; also signs Methodology sessions), and `METHODOLOGY_PIN` (the four-digit access PIN; share it out of band). Methodology access is retained in an HttpOnly cookie for 12 hours; failed PIN attempts are rate-limited per instance and IP.
+2. Settings → Environment Variables → `UPSTOX_ACCESS_TOKEN`, `CRON_SECRET` (at least 32 characters), and `METHODOLOGY_PIN` (the four-digit access PIN; share it out of band). The PIN is required on each Methodology page load; failed attempts are rate-limited per instance and IP.
 3. Deploy. Confirm your Vercel plan supports the `/api/scan` `maxDuration = 300` setting and configure an authenticated post-deploy warm-up.
 
 ## Rate limits & refresh (important)

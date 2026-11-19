@@ -67,7 +67,7 @@ export default async function Home() {
             </ul>
             <div className="cta-row">
               <Link href="/board" className="btn btn-primary">Open Liquidity Board →</Link>
-              <Link href="/methodology" className="btn">How it works</Link>
+              <a href="/methodology" className="btn">How it works</a>
             </div>
             <p className="dim" style={{ marginTop: 16, fontSize: 14 }}>Free to use · No account required</p>
           </div>
@@ -129,9 +129,9 @@ export default async function Home() {
           {modules.map(([n, t, d]) => (
             <TiltCard key={n}><div className="card mod glass" style={{ height: '100%' }}><span className="num">{n}</span><h3>{t}</h3><p>{d}</p></div></TiltCard>
           ))}
-          <Link href="/methodology" className="card mod glass mod-link">
+          <a href="/methodology" className="card mod glass mod-link">
             <span className="num">→</span><h3 className="grad">Read the full methodology</h3><p>Review the rules, model weights and known limitations.</p>
-          </Link>
+          </a>
         </div>
       </section>
 

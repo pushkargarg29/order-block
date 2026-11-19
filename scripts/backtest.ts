@@ -10,9 +10,9 @@ import { join } from 'path';
 import { getFnoUniverse } from '../lib/instruments';
 import { getHistory } from '../lib/upstox';
 import { runBacktest, summarize, isSignal, BT_HISTORY } from '../lib/backtest';
-import { fitLogistic, predictWith, auc, brier, reliability, purgeOverlappingTrades } from '../lib/fit';
+import { fitLogistic, predictWith, auc, brier, reliability, splitWalkForwardTrades } from '../lib/fit';
 import { FEATURE_NAMES } from '../lib/model';
-import type { BtTrade, Timeframe } from '../lib/types';
+import type { BtStats, BtTrade, Timeframe } from '../lib/types';
 import { TIMEFRAMES } from '../lib/types';
 
 const root = join(__dirname, '..');
@@ -35,41 +35,46 @@ async function runTf(tf: Timeframe) {
   const uni = (await getFnoUniverse()).slice(0, limit);
   console.log(`\n[${tf}] ${uni.length} stocks · ${h.days} days of ${h.interval} ${h.unit}`);
   const all: BtTrade[] = [];
-  let done = 0, succeeded = 0;
+  let done = 0, usable = 0;
   for (const u of uni) {
     try {
       const c = await getHistory(u.key, h.unit, h.interval, h.days);
-      all.push(...runBacktest(c, tf, { costPct }));
-      succeeded++;
+      if (c.length < 120) {
+        console.warn(`  ${u.symbol}: only ${c.length} valid candles; insufficient history`);
+      } else {
+        all.push(...runBacktest(c, tf, { costPct }));
+        usable++;
+      }
     } catch (e) { console.warn(`  ${u.symbol}: ${(e as Error).message}`); }
     if (++done % 20 === 0) console.log(`  ${done}/${uni.length} stocks · ${all.length} trades`);
   }
-  const coverage = uni.length ? succeeded / uni.length : 0;
-  if (coverage < 0.8) { console.warn(`  only ${pct(coverage)} of symbols loaded successfully — skipped fitting`); return null; }
+  const coverage = uni.length ? usable / uni.length : 0;
+  if (coverage < 0.8) { console.warn(`  only ${pct(coverage)} of symbols have at least 120 valid candles — skipped fitting`); return null; }
   if (all.length < 300) { console.warn(`  only ${all.length} trades — not enough to fit; skipped`); return null; }
-  all.sort((a, b) => a.t - b.t);
-  const X = all.map(t => t.features), y: number[] = all.map(t => (t.hit1R ? 1 : 0));
-
-  // Walk-forward: purge training trades that remain open when the test window starts.
-  const cut = Math.floor(all.length * 0.7);
-  const testStart = all[cut]?.t;
-  if (testStart == null) { console.warn('  no test trades after the walk-forward split — skipped fitting'); return null; }
-  const train = purgeOverlappingTrades(all.slice(0, cut), testStart);
+  const { train, test } = splitWalkForwardTrades(all);
+  const testStart = test[0]?.t;
+  if (testStart == null || !train.length) { console.warn('  no usable training or test trades after the walk-forward split — skipped fitting'); return null; }
   const trainY = train.map(t => t.hit1R ? 1 : 0);
   const trainPositives = trainY.filter(label => label === 1).length;
   const trainNegatives = trainY.length - trainPositives;
-  const testPositives = y.slice(cut).filter(label => label === 1).length;
-  const testNegatives = y.length - cut - testPositives;
+  const yT = test.map(t => t.hit1R ? 1 : 0);
+  const testPositives = yT.filter(label => label === 1).length;
+  const testNegatives = yT.length - testPositives;
   if (Math.min(trainPositives, trainNegatives, testPositives, testNegatives) < 10) {
     console.warn('  at least one walk-forward split has fewer than 10 examples of an outcome class — skipped fitting');
     return null;
   }
   const m1 = fitLogistic(train.map(t => t.features), trainY);
-  const pT = X.slice(cut).map(x => predictWith(m1, x)), yT = y.slice(cut);
-  const oos = { auc: auc(pT, yT), brier: brier(pT, yT), baseRate: yT.reduce((a, b) => a + b, 0) / yT.length, samples: yT.length };
+  const pT = test.map(t => predictWith(m1, t.features));
+  const oos = { auc: auc(pT, yT), brier: brier(pT, yT), baseRate: yT.reduce<number>((a, b) => a + b, 0) / yT.length, samples: yT.length };
   const rel = reliability(pT, yT);
+  const oosTrades = test.map((trade, i) => ({ ...trade, p: pT[i] }));
+  const oosAll = summarize(oosTrades, costPct);
+  const oosSignals = summarize(oosTrades.filter(isSignal), costPct);
+  const oosHighScore = summarize(oosTrades.filter(t => t.p >= 0.6), costPct);
 
   // final model on all data
+  const X = all.map(t => t.features), y: number[] = all.map(t => (t.hit1R ? 1 : 0));
   const m = fitLogistic(X, y);
   for (const t of all) t.p = predictWith(m, t.features);
   const sAll = summarize(all, costPct), sSig = summarize(all.filter(isSignal), costPct);
@@ -78,26 +83,44 @@ async function runTf(tf: Timeframe) {
   const model = {
     fitted: true, trainedAt: new Date().toISOString(), samples: all.length,
     means: m.means, stds: m.stds, w: m.w, b: m.b, oos,
-    stats: { hitRate1R: sAll.hitRate1R, expectancy2R: sAll.expectancy2R, signalHitRate1R: sSig.hitRate1R, signalExpectancy2R: sSig.expectancy2R, highScoreHitRate1R: hi.hitRate1R, highScoreTrades: hi.trades }
+    stats: {
+      oosTrades: oosAll.trades, oosExpectancy2R: oosAll.expectancy2R,
+      oosSignalTrades: oosSignals.trades, oosSignalHitRate1R: oosSignals.hitRate1R, oosSignalExpectancy2R: oosSignals.expectancy2R,
+      oosScore60Trades: oosHighScore.trades, oosScore60HitRate1R: oosHighScore.hitRate1R, oosScore60Expectancy2R: oosHighScore.expectancy2R,
+      fullSampleTrades: sAll.trades, fullSampleSignalHitRate1R: sSig.hitRate1R,
+      fullSampleSignalExpectancy2R: sSig.expectancy2R, fullSampleScore60Trades: hi.trades
+    }
   };
 
+  const strategyRow = (name: string, stats: BtStats) =>
+    `| ${name} | ${stats.trades} | ${stats.trades ? pct(stats.hitRate1R) : '—'} | ${stats.trades ? pct(stats.winRate2R) : '—'} | ${stats.trades ? stats.expectancy2R.toFixed(3) : '—'} | ${stats.trades ? stats.profitFactor.toFixed(2) : '—'} | ${stats.trades ? stats.maxDrawdownR.toFixed(1) : '—'} |`;
+  const fullSampleRow = ([name, stats]: [string, BtStats]) =>
+    `| ${name} | ${stats.trades} | ${pct(stats.hitRate1R)} | ${pct(stats.hitRate2R)} | ${pct(stats.hitRate3R)} | ${pct(stats.winRate2R)} | ${stats.expectancy2R.toFixed(3)} | ${stats.profitFactor.toFixed(2)} | ${stats.maxDrawdownR.toFixed(1)} |`;
+  const fullSampleStats: [string, BtStats][] = [
+    ['All order-block retests', sAll],
+    ['Stoclio signals (bias-aligned, not choppy)', sSig],
+    ['Score ≥ 60 (in-sample)', hi]
+  ];
   const lines = [
-    `# Stoclio backtest — ${tf}`, '', `Generated ${model.trainedAt} · ${uni.length} stocks · ${h.days} days · cost ${(costPct * 100).toFixed(3)}% per side`, '',
-    '## Out-of-sample (last 30% of trades; overlapping training trades purged)', '',
+    `# Stoclio backtest — ${tf}`, '', `Generated ${model.trainedAt} · ${uni.length} requested stocks · ${usable} with at least 120 valid candles (${pct(coverage)} coverage) · ${h.days} days · cost ${(costPct * 100).toFixed(3)}% per side`, '',
+    '## Walk-forward out-of-sample', '',
+    `Test starts at ${new Date(testStart).toISOString()}; all entries at that timestamp are kept in the test set, and training trades must exit before it.`, '',
     `- Samples: ${oos.samples} · AUC **${oos.auc.toFixed(3)}** · Brier ${oos.brier.toFixed(4)} · base rate ${pct(oos.baseRate)}`, '',
     '| Predicted bucket | Trades | Avg predicted | Actual 1R hit |', '|---|---|---|---|',
     ...rel.map(r => `| ${r.bucket} | ${r.n} | ${pct(r.predicted)} | ${pct(r.actual)} |`), '',
-    '## Full-sample trade statistics (net of costs)', '',
+    '### Strategy outcomes using only out-of-sample predictions (net of costs)', '',
+    '| Set | Trades | TP1 hit | Profitable | Expectancy (R) | Profit factor | Max DD (R) |', '|---|---|---|---|---|---|---|',
+    strategyRow('All order-block retests', oosAll), strategyRow('Stoclio signals (bias-aligned, not choppy)', oosSignals), strategyRow('Score ≥ 60', oosHighScore), '',
+    '## Full-sample descriptive statistics (not out-of-sample validation)', '',
     '| Set | Trades | TP1 hit | TP2 hit | TP3 hit | Profitable | Expectancy (R) | Profit factor | Max DD (R) |', '|---|---|---|---|---|---|---|---|---|',
-    ...[['All order-block retests', sAll], ['Stoclio signals (bias-aligned, not choppy)', sSig], ['Score ≥ 60', hi]].map(([n, s]: any) =>
-      `| ${n} | ${s.trades} | ${pct(s.hitRate1R)} | ${pct(s.hitRate2R)} | ${pct(s.hitRate3R)} | ${pct(s.winRate2R)} | ${s.expectancy2R.toFixed(3)} | ${s.profitFactor.toFixed(2)} | ${s.maxDrawdownR.toFixed(1)} |`), '',
+    ...fullSampleStats.map(fullSampleRow), '',
     '## Fitted weights (standardised features)', '', '| Feature | Weight |', '|---|---|',
     ...FEATURE_NAMES.map((f, i) => `| ${f} | ${m.w[i].toFixed(3)} |`), `| intercept | ${m.b.toFixed(3)} |`, '',
-    '> Limitation: uses today\'s F&O list (survivorship bias) and does not model OI / option-chain / regime modules, which are applied live as documented log-odds adjustments.'
+    '> Limitations: uses today\'s F&O list (survivorship bias) and does not model historical OI, option-chain or regime modules. These live adjustments are not validated by this backtest.'
   ];
   mkdirSync(join(root, 'reports'), { recursive: true });
   writeFileSync(join(root, 'reports', `backtest-${tf}.md`), lines.join('\n'));
-  console.log(`  OOS AUC ${oos.auc.toFixed(3)} · signals 1R hit ${pct(sSig.hitRate1R)} · expectancy ${sSig.expectancy2R.toFixed(3)}R → reports/backtest-${tf}.md`);
+  console.log(`  OOS AUC ${oos.auc.toFixed(3)} · OOS signals ${oosSignals.trades} · 1R hit ${pct(oosSignals.hitRate1R)} · expectancy ${oosSignals.expectancy2R.toFixed(3)}R → reports/backtest-${tf}.md`);
   return model;
 }
 

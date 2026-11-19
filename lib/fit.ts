@@ -41,6 +41,21 @@ export function purgeOverlappingTrades<T extends { exitT: number }>(trades: T[],
   return trades.filter(trade => trade.exitT < testStart);
 }
 
+export function splitWalkForwardTrades<T extends { t: number; exitT: number }>(
+  trades: T[], trainRatio = 0.7
+): { train: T[]; test: T[] } {
+  if (!Number.isFinite(trainRatio) || trainRatio <= 0 || trainRatio >= 1) {
+    throw new RangeError('trainRatio must be between 0 and 1');
+  }
+  const ordered = [...trades].sort((a, b) => a.t - b.t);
+  const cut = Math.floor(ordered.length * trainRatio);
+  if (cut === 0 || cut >= ordered.length) return { train: [], test: [] };
+  const testStart = ordered[cut].t;
+  const test = ordered.filter(trade => trade.t >= testStart);
+  const train = purgeOverlappingTrades(ordered.filter(trade => trade.t < testStart), testStart);
+  return { train, test };
+}
+
 export function auc(p: number[], y: number[]): number {
   if (p.length !== y.length || p.length === 0 || p.some(value => !Number.isFinite(value)) || y.some(value => value !== 0 && value !== 1)) return 0.5;
   const idx = p.map((v, i) => i).sort((a, b) => p[a] - p[b]);

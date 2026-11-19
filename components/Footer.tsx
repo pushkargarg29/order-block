@@ -21,7 +21,7 @@ export default function Footer() {
           </div>
           <div>
             <h4>Resources</h4>
-            <Link href="/methodology">Methodology</Link>
+            <a href="/methodology">Methodology</a>
             <Link href="/disclaimer">Disclaimer &amp; Risk</Link>
           </div>
         </div>

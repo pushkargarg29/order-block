@@ -1,12 +1,24 @@
 'use client';
-import { useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 
-export default function MethodologyPinGate({ children }: { children: ReactNode }) {
+export default function MethodologyPinGate() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
+  const [content, setContent] = useState<string | null>(null);
+
+  useEffect(() => {
+    const resetAfterHistoryRestore = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setPin('');
+        setError(null);
+        setContent(null);
+      }
+    };
+    window.addEventListener('pageshow', resetAfterHistoryRestore);
+    return () => window.removeEventListener('pageshow', resetAfterHistoryRestore);
+  }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -19,10 +31,18 @@ export default function MethodologyPinGate({ children }: { children: ReactNode }
         body: JSON.stringify({ pin }),
         cache: 'no-store'
       });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || 'Could not verify the PIN.');
+      const result: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = result && typeof result === 'object' && 'error' in result && typeof result.error === 'string'
+          ? result.error
+          : 'Could not verify the PIN.';
+        throw new Error(message);
+      }
+      if (!result || typeof result !== 'object' || !('html' in result) || typeof result.html !== 'string') {
+        throw new Error('The methodology response was invalid.');
+      }
       setPin('');
-      setUnlocked(true);
+      setContent(result.html);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not verify the PIN.');
     } finally {
@@ -30,7 +50,9 @@ export default function MethodologyPinGate({ children }: { children: ReactNode }
     }
   };
 
-  if (unlocked) return children;
+  if (content !== null) {
+    return <div dangerouslySetInnerHTML={{ __html: content }} />;
+  }
 
   return (
     <main className="methodology-pin-gate">

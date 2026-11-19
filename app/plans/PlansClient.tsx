@@ -6,7 +6,7 @@ import type { ScanRow, Timeframe } from '@/lib/types';
 import { useScan, useLiveQuotes } from '@/components/useScan';
 import TfSwitch from '@/components/TfSwitch';
 import LiveBadge from '@/components/LiveBadge';
-import { ModelBadge, RegimeBar, ScoreDetails, EnrichmentCoverage } from '@/components/Context';
+import { ModelBadge, RegimeBar, ScoreDetails, EnrichmentCoverage, ScanDiagnostics } from '@/components/Context';
 import { f2, pct } from '@/components/fmt';
 import { planReadiness, planStatusMessage } from '@/lib/plan-status';
 
@@ -70,7 +70,7 @@ export default function PlansClient({ initial = null }: { initial?: ScanResult |
           <h1>Trade <span className="grad">Plans</span></h1>
           <p className="muted" style={{ marginTop: 6 }}>Entry, stop loss and TP1–TP3 levels for every active NSE F&amp;O stock with a valid order-block setup, recalculated with each scan.</p>
         </div>
-        <div className="toolbar">{data && <ModelBadge fitted={data.model.fitted} trainedAt={data.model.trainedAt} />}<EnrichmentCoverage enrichment={data?.enrichment} /><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
+        <div className="toolbar">{data && <ModelBadge fitted={data.model.fitted} trainedAt={data.model.trainedAt} />}<EnrichmentCoverage enrichment={data?.enrichment} /><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><ScanDiagnostics data={data} /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
       <RegimeBar r={data?.regime ?? null} />
 

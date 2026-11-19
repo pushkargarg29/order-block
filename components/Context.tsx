@@ -1,6 +1,8 @@
 'use client';
 import type { Context, RegimeInfo, Bias, ScanResult } from '@/lib/types';
 import { f2, pct } from './fmt';
+import { availabilityLabel, coverageLabel } from '@/lib/scan-health';
+import { fmtIST } from '@/lib/time';
 
 const trendLabel = (t: number) => (t > 0.2 ? 'Up' : t < -0.2 ? 'Down' : 'Flat');
 const trendCls = (t: number) => (t > 0.2 ? 'bull' : t < -0.2 ? 'bear' : 'muted');
@@ -13,6 +15,39 @@ export function EnrichmentCoverage({ enrichment }: { enrichment?: ScanResult['en
     <span className="dim" title="Available data / eligible candidates enriched during this scan">
       Context data: OI {oi.available}/{oi.requested} · options {options.available}/{options.requested}
     </span>
+  );
+}
+
+export function ScanDiagnostics({ data }: { data?: ScanResult | null }) {
+  if (!data) return null;
+  const quoteAt = typeof data.quoteAt === 'number' && Number.isFinite(data.quoteAt) && data.quoteAt > 0
+    ? data.quoteAt
+    : null;
+  const regime = data.regime;
+  const value = (label: string, text: string) => <div key={label}><dt>{label}</dt><dd>{text}</dd></div>;
+
+  return (
+    <details className="scan-diagnostics">
+      <summary>Data diagnostics</summary>
+      <dl className="scan-diagnostics-grid">
+        {value('Universe', `${data.total} active F&O symbols`)}
+        {value('Analysis completed', `${data.scanned}/${data.total} · ${data.failed} failed`)}
+        {value('Scan coverage', coverageLabel(data.scanCoverage))}
+        {value('Quote coverage', coverageLabel(data.quoteCoverage))}
+        {value('Oldest quote sample', quoteAt == null ? 'Not available' : `${fmtIST(quoteAt, true)} IST`)}
+        {value('Index regime', regime ? 'Available' : 'Unavailable')}
+        {value('NIFTY quote', regime?.nifty.ltp == null ? 'Unavailable' : 'Available')}
+        {value('BANK NIFTY quote', regime?.bank.ltp == null ? 'Unavailable' : 'Available')}
+        {value('India VIX quote', regime?.vix.ltp == null ? 'Unavailable' : 'Available')}
+        {value('F&O ban list', regime?.ban == null ? 'Unavailable' : `${regime.ban.length} symbols listed`)}
+        {value('Results calendar', regime?.earnings == null ? 'Unavailable' : 'Available')}
+        {value('Futures OI enrichment', data.enrichment ? availabilityLabel(data.enrichment.oi.available, data.enrichment.oi.requested) : 'Not reported')}
+        {value('Options enrichment', data.enrichment ? availabilityLabel(data.enrichment.options.available, data.enrichment.options.requested) : 'Not reported')}
+      </dl>
+      <p className="scan-diagnostics-note">
+        OI and options enrichment is requested only for the strongest eligible candidates; counts are not full-universe coverage.
+      </p>
+    </details>
   );
 }
 

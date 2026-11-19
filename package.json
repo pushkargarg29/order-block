@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx --test tests/fit.test.ts tests/core.test.ts tests/cron-auth.test.ts tests/ratelimit.test.ts",
+    "test": "tsx --test tests/fit.test.ts tests/core.test.ts tests/cron-auth.test.ts tests/ratelimit.test.ts tests/scan-health.test.ts",
     "backtest": "tsx scripts/backtest.ts"
   },
   "dependencies": {

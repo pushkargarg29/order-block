@@ -23,7 +23,9 @@ export default function Navbar() {
       <div className="container nav-in">
         <Link href="/" className="logo" aria-label="Stoclio home"><Logo /> <span>Stoc<span className="grad">lio</span></span></Link>
         <nav id="primary-navigation" aria-label="Primary navigation" className={`nav-links ${open ? 'open' : ''}`} onClick={() => setOpen(false)}>
-          {links.map(l => <Link key={l.href} href={l.href} className={isActive(l.href) ? 'active' : ''}>{l.label}</Link>)}
+          {links.map(l => l.href === '/methodology'
+            ? <a key={l.href} href={l.href} className={isActive(l.href) ? 'active' : ''}>{l.label}</a>
+            : <Link key={l.href} href={l.href} className={isActive(l.href) ? 'active' : ''}>{l.label}</Link>)}
         </nav>
         <StockSearch className="nav-stock-search" onNavigate={() => setOpen(false)} />
         <button className="burger" aria-label="Menu" aria-expanded={open} aria-controls="primary-navigation" onClick={() => setOpen(o => !o)}>

@@ -7,7 +7,7 @@ import { useScan } from '@/components/useScan';
 import TfSwitch from '@/components/TfSwitch';
 import LiveBadge from '@/components/LiveBadge';
 import { f2, pct } from '@/components/fmt';
-import { RegimeBar, ModelBadge, ScoreDetails, EnrichmentCoverage } from '@/components/Context';
+import { RegimeBar, ModelBadge, ScoreDetails, EnrichmentCoverage, ScanDiagnostics } from '@/components/Context';
 import MarketUniverse3D from '@/components/three/MarketUniverse3D';
 
 type Key = 'symbol' | 'ltp' | 'changePct' | 'score' | 'rank' | 'er' | 'rsi' | 'rvol' | 'atrPct' | 'dist' | 'rr' | 'oi' | 'htf' | 'pcr';
@@ -58,7 +58,7 @@ export default function XrayClient({ initial = null }: { initial?: ScanResult | 
     <div className="container">
       <div className="page-head">
         <div><h1><span className="grad">Market X-Ray</span></h1><p className="muted" style={{ marginTop: 6 }}>Market structure, open-interest and options data for every active NSE F&amp;O stock in one sortable view.</p></div>
-        <div className="toolbar">{data && <ModelBadge fitted={data.model.fitted} trainedAt={data.model.trainedAt} />}<EnrichmentCoverage enrichment={data?.enrichment} /><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><TfSwitch value={tf} onChange={setTf} /></div>
+        <div className="toolbar">{data && <ModelBadge fitted={data.model.fitted} trainedAt={data.model.trainedAt} />}<EnrichmentCoverage enrichment={data?.enrichment} /><LiveBadge at={data?.quoteAt === undefined ? data?.at : data.quoteAt} coverage={data?.quoteCoverage} scanCoverage={data?.scanCoverage} sampleLabel="Quotes sampled" /><ScanDiagnostics data={data} /><TfSwitch value={tf} onChange={setTf} /></div>
       </div>
       <RegimeBar r={data?.regime ?? null} />
       <div className="toolbar" style={{ marginBottom: 16 }}>
